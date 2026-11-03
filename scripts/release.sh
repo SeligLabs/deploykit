@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # Release deploykit: check, version, commit, tag, push, GitHub release.
 #
-#   bash scripts/release.sh                 the version in package.json, when it isn't tagged yet
-#   bash scripts/release.sh patch|minor|major|<x.y.z>
+#   bash scripts/release.sh                 asks: which version (or just the checks)
+#   bash scripts/release.sh patch|minor|major|<x.y.z>|current
 #   bash scripts/release.sh --dry-run [...] every check and what would happen; changes nothing
+#
+# Asked, it offers package.json's version when it isn't tagged yet, a patch,
+# minor or major bump, a version typed in, or a dry run (arrow keys and Enter,
+# through the kit's own prompts; a number without a terminal).
 #
 # In order, stopping at the first problem:
 #   1. on main, clean, level with origin/main
-#   2. the version: package.json's untagged one, or the bump asked for
+#   2. which version, asked when no argument says (see above)
+#      (the version is then checked: untagged, and a major raises DK_API)
 #   3. CHANGELOG.md has its entry: a "## <version>" or "## <version> (unreleased)"
 #      heading, or "## Unreleased", which becomes "## <version> (<date>)"
 #   4. the checks: gofmt, go vet and go test in tui/, shellcheck, test/run.sh
@@ -25,7 +30,11 @@ KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$KIT"
 
 die() { printf '\e[1;31m%s\e[0m\n' "$*" >&2; exit 1; }
+warn() { printf '\e[1;33m%s\e[0m\n' "$*" >&2; }
 say() { printf '\e[1m==> %s\e[0m\n' "$*"; }
+# pick, ask_line, confirm.
+# shellcheck source=../lib/prompt.sh
+source "$KIT/lib/prompt.sh"
 
 DRY=0
 if [[ "${1:-}" == --dry-run ]]; then
@@ -45,10 +54,46 @@ git fetch --quiet --tags origin main
 # 2. The version.
 current="$(node -p "require('./package.json').version")"
 IFS=. read -r major minor patch <<<"$current"
+tagged() { git rev-parse -q --verify "refs/tags/v$1" >/dev/null; }
+
+# No argument: ask.
+if [[ -z "$ASK" ]]; then
+  labels=() choices=()
+  if ! tagged "$current"; then
+    labels+=("v$current   package.json's version, not tagged yet")
+    choices+=(current)
+  fi
+  labels+=("Patch  → v$major.$minor.$((patch + 1))   fixes, nothing an app must change"
+    "Minor  → v$major.$((minor + 1)).0   new options or hooks; apps keep working"
+    "Major  → v$((major + 1)).0.0   the contract changes (raise DK_API)"
+    "Custom → type a version")
+  choices+=(patch minor major custom)
+  if ((!DRY)); then
+    labels+=("" "Just the checks (a dry run): change nothing")
+    choices+=("" dry)
+  fi
+  labels+=("Cancel")
+  choices+=(cancel)
+  echo "deploykit is at v$current$(tagged "$current" && echo " (tagged)" || echo " (not tagged yet)"). Release:"
+  PROMPT_TITLE="Release deploykit" pick 0 "${labels[@]}" || die "Nothing chosen."
+  ASK="${choices[PICKED]}"
+  case "$ASK" in
+    cancel) die "Cancelled. Nothing was changed." ;;
+    dry)
+      DRY=1
+      ASK=current
+      tagged "$current" && ASK="patch"
+      ;;
+    custom)
+      ask_line "Version (x.y.z)" "" || die "No version typed."
+      ASK="$ASK_ANSWER"
+      ;;
+  esac
+fi
+
 case "$ASK" in
-  "")
-    git rev-parse -q --verify "refs/tags/v$current" >/dev/null &&
-      die "v$current is already tagged: say patch, minor, major or a version."
+  current)
+    tagged "$current" && die "v$current is already tagged: choose a bump."
     next=$current
     ;;
   patch) next="$major.$minor.$((patch + 1))" ;;
@@ -122,14 +167,10 @@ git commit -q -m "Release v$next"
 git --no-pager log --oneline -1
 echo
 echo "Next: tag v$next, push main and the tag to origin ($(git remote get-url origin)), and create the GitHub release."
-read -r -p "Push the release? [y/n] " answer || answer=n
-case "$answer" in
-  y | Y | yes | YES) ;;
-  *)
-    git reset -q --keep HEAD~1
-    die "Not released. The release commit is taken back; nothing left the machine."
-    ;;
-esac
+if ! confirm "Push the release?"; then
+  git reset -q --keep HEAD~1
+  die "Not released. The release commit is taken back; nothing left the machine."
+fi
 
 # 6. Out.
 say "Tag, push, GitHub release"
