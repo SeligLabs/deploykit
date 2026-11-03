@@ -23,6 +23,20 @@
 
 dk_outputs_enabled() { [[ -n "$(dk_c outputs)" && -n "$(dk_c infra_dir)" ]]; }
 
+# dk_outputs_needed: this run uses them: Infra is ticked, or a ticked target
+# waits for them (--waits-for outputs) or reaches AWS (a site's bucket). A
+# store target whose build reads only committed files needs no AWS session.
+dk_outputs_needed() {
+  local id
+  dk_outputs_enabled || return 1
+  ((${DO_INFRA:-0})) && return 0
+  for id in $(dk_targets_on); do
+    dk_needs_outputs "$id" && return 0
+    [[ "$(dk_driver "$id" needs_aws)" == yes ]] && return 0
+  done
+  return 1
+}
+
 # dk_outputs_fetch <json file>: terraform output -json, from the state.
 dk_outputs_fetch() {
   local json=$1 dir log="${1%.json}-init.log"
@@ -75,7 +89,7 @@ dk_outputs_export() {
 # dk_outputs_read: fetch and export, in Preflight and after the apply.
 dk_outputs_read() {
   local n
-  dk_outputs_enabled || return 0
+  dk_outputs_needed || return 0
   spinner_label "reading Terraform's outputs"
   if dk_outputs_fetch "$WORK/outputs.json"; then
     dk_outputs_export

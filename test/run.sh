@@ -431,6 +431,16 @@ case_outputs_stale_only() {
   [[ "$(uploads)" == 0 ]] || fail "uploaded a build made with the env file's stale value"
 }
 
+# A store target whose build uses no outputs needs no AWS session and no
+# Terraform: the fixture's Android TV doesn't --waits-for outputs.
+case_store_without_outputs() {
+  fresh store-only
+  deploy "1\n" tv:androidtv
+  expect_rc 0
+  expect_no_log "^terraform|^aws sts"
+  [[ "$(uploads)" == 1 ]] || fail "$(uploads) uploads, want 1"
+}
+
 # yarn deploy env-sync: the live outputs into env/.env, in place.
 case_env_sync() {
   fresh env-sync
@@ -454,7 +464,7 @@ case_usage() {
 
 SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
   sites_only first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
-  no_simulators tv_leanback bump publish_site outputs_live outputs_stale_only env_sync sso_margin settings demo usage)
+  no_simulators tv_leanback bump publish_site outputs_live outputs_stale_only store_without_outputs env_sync sso_margin settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
 for s in "${SCENARIOS[@]}"; do
   CASE_OK=1

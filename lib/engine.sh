@@ -260,8 +260,8 @@ dk_options() {
 dk_needs_aws() {
   local id
   ((DO_INFRA)) && return 0
-  # Terraform's outputs are read from the state.
-  dk_outputs_enabled && return 0
+  # Terraform's outputs are read from the state, when this run uses them.
+  dk_outputs_needed && return 0
   for id in $(dk_targets_on); do
     [[ "$(dk_driver "$id" needs_aws)" == yes ]] && return 0
   done
@@ -271,7 +271,7 @@ dk_needs_aws() {
 # dk_tools: the tools this run needs on PATH.
 dk_tools() {
   local id tools="git node yarn jq"
-  ((DO_INFRA)) && tools+=" terraform"
+  { ((DO_INFRA)) || dk_outputs_needed; } && tools+=" terraform"
   dk_needs_aws && tools+=" aws"
   ((DO_RELEASE)) && tools+=" gh"
   for id in $(dk_targets_on); do tools+=" $(dk_driver "$id" tools) $(dk_t "$id" tools)"; done
@@ -531,7 +531,9 @@ dk_main() {
   DK_SETTINGS_FILES="$(dk_c settings_files env/.env)"
   dk_identity
   dk_parse "$@"
-  dk_declare_settings
+  # Tools declare none: their lookups would warn about old names again and
+  # again, with no $WORK to remember that they did.
+  [[ "$DK_KIND" == tool ]] || dk_declare_settings
 
   if [[ "$DK_KIND" == settings ]]; then
     dk_settings_report
