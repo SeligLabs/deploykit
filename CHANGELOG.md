@@ -9,6 +9,8 @@ New options (a minor release: apps keep working):
 - **The watch, as part of the iOS target:** `--watch <scheme>` runs the watch app's XCTests on a watchOS simulator before the archive and checks the watch app and its extensions in the archive (bundle ID, version and build). `--tests "<scheme ...>"` runs more XCTest schemes (widgets, say) on the platform's simulator, and `--extensions "<Name.appex ...>"` checks the app's own extensions. A `Tests` step comes before `Build` when either is set. An app's hand-written watch tests and archive checks can go.
 - **Per-stage Terraform:** `dk_config tf_init_args` and `tf_plan_args`, expanded in the plan's thread (`-backend-config=key=$STAGE.tfstate`, `-var-file=environments/$STAGE.tfvars`). An app that redefined `infra_init` or `infra_plan_lane`, or set `TF_CLI_ARGS_*`, for this can declare it instead.
 - **No version question for sites alone:** with only site targets ticked and Release unticked, `yarn deploy` keeps the version and asks nothing about it, as the apps' deploys did before the kit.
+- **Fix:** an old setting name in one settings file beat the new name in another; the new name in any file now comes first. The old-name warning came once per lookup; now once per run.
+- **Fix:** `yarn deploy demo` wrote its pretend output over the app's real lane logs (`<dir>/build/deploy-<id>.log`); they now go to the demo's scratch cache.
 - **Fix:** a missing `Payload/*.app` stopped Verify without a message (an empty glob under pipefail); it now says what's missing.
 
 ## 0.0.2 (2026-11-03)

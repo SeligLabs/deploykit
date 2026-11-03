@@ -180,11 +180,12 @@ Helpers an app may call: `step`, `step_mark`, `spinner_label`, `progress_total`,
 ## Settings
 
 `dk_setting <NAME>` returns the first value it finds, from:
-1. the environment
-2. an alias's old name (`dk_alias NAME OLD ...`, which warns once per run)
-3. `settings_source_hook NAME`
-4. `settings_files`
-5. the declared default
+1. the environment: the name, then an alias's old name (`dk_alias NAME OLD ...`)
+2. `settings_source_hook NAME`
+3. `settings_files`: the name in any of them, then an old name in any of them, so a setting renamed in one file beats its old name left in another
+4. the declared default
+
+An old name warns once per run.
 
 Paths are taken relative to the app's root, and `~` is expanded. Drivers declare what they need, and Preflight requires it for ticked targets only.
 

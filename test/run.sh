@@ -258,6 +258,16 @@ case_settings() {
   PLAY_SERVICE_ACCOUNT_JSON=env/play.json DK_TEST_ALIAS=1 deploy "" settings
   expect_rc 0
   expect_out "alias PLAY_SERVICE_ACCOUNT_JSON"
+  # A file with both: the new name wins over the old one, and the warning
+  # about an old name comes once a run.
+  mv "$APP/env/release.env.bak" "$APP/env/release.env"
+  echo "PLAY_SERVICE_ACCOUNT_JSON=env/old.json" >>"$APP/env/release.env"
+  deploy "" settings
+  expect_rc 0
+  grep -E 'PLAY_JSON_KEY_PATH +env/play.json +env/release.env' <<<"$OUT" >/dev/null || fail "the old name beat the new one in the file"
+  sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/release.env"
+  deploy "" settings
+  [[ "$(grep -c 'is the old name of PLAY_JSON_KEY_PATH' <<<"$OUT")" == 1 ]] || fail "the old-name warning came $(grep -c 'is the old name' <<<"$OUT") times"
 }
 
 case_demo() {
@@ -270,6 +280,8 @@ case_demo() {
   expect_out "AndroidTV: 1.0.0 (11) (a demo"
   [[ "$(git -C "$APP" rev-parse HEAD)" == "$head" ]] || fail "the demo committed"
   expect_no_log "terraform|^UPLOAD|fastlane|s3 sync"
+  # The app's lane logs (its last real build's) are left alone.
+  [[ -z "$(find "$APP/apps" -name 'deploy-*.log' 2>/dev/null)" ]] || fail "the demo wrote $(find "$APP/apps" -name 'deploy-*.log' | head -n 1)"
   no_leftovers
 }
 

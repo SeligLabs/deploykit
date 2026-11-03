@@ -48,24 +48,15 @@ dk_setting_file_value() {
 dk_setting_lookup() {
   local name=$1 old file var value
   DK_SETTING_VALUE="" DK_SETTING_FROM=""
+  var="DKS_${name}_aliases"
+  # The environment: the name, then its old names.
   if [[ -n "${!name:-}" ]]; then
     DK_SETTING_VALUE="${!name}" DK_SETTING_FROM=env
     return 0
   fi
-  var="DKS_${name}_aliases"
   for old in ${!var:-}; do
-    value="${!old:-}"
-    [[ -n "$value" ]] || for file in ${DK_SETTINGS_FILES:-env/release.env}; do
-      [[ "$file" == /* ]] || file="$ROOT/$file"
-      value="$(dk_setting_file_value "$file" "$old")"
-      [[ -z "$value" ]] || break
-    done
-    if [[ -n "$value" ]]; then
-      if [[ "$DK_SETTING_WARNED" != *" $old "* ]]; then
-        DK_SETTING_WARNED+="$old "
-        warn "Setting $old is the old name of $name: rename it (deploykit CONTRACT.md, Settings)."
-      fi
-      DK_SETTING_VALUE=$value DK_SETTING_FROM="alias $old"
+    if [[ -n "${!old:-}" ]]; then
+      dk_setting_old "$old" "$name" "${!old}"
       return 0
     fi
   done
@@ -76,6 +67,8 @@ dk_setting_lookup() {
       return 0
     fi
   fi
+  # The files: the name in any of them first, so a setting renamed in one
+  # file beats its old name left in another.
   for file in ${DK_SETTINGS_FILES:-env/release.env}; do
     [[ "$file" == /* ]] || file="$ROOT/$file"
     value="$(dk_setting_file_value "$file" "$name")"
@@ -84,11 +77,36 @@ dk_setting_lookup() {
       return 0
     fi
   done
+  for old in ${!var:-}; do
+    for file in ${DK_SETTINGS_FILES:-env/release.env}; do
+      [[ "$file" == /* ]] || file="$ROOT/$file"
+      value="$(dk_setting_file_value "$file" "$old")"
+      if [[ -n "$value" ]]; then
+        dk_setting_old "$old" "$name" "$value"
+        return 0
+      fi
+    done
+  done
   var="DKS_${name}_default"
   if [[ -n "${!var:-}" ]]; then
     DK_SETTING_VALUE="${!var}" DK_SETTING_FROM=default
   fi
   return 0
+}
+
+# dk_setting_old <old> <name> <value>: found under an old name; says so once
+# per run (lookups run in subshells, so what was said is kept in $WORK).
+dk_setting_old() {
+  local warned="${WORK:-}/settings-warned"
+  DK_SETTING_VALUE=$3 DK_SETTING_FROM="alias $1"
+  if [[ -n "${WORK:-}" && -d "$WORK" ]]; then
+    grep -qxF "$1" "$warned" 2>/dev/null && return 0
+    echo "$1" >>"$warned"
+  else
+    [[ "$DK_SETTING_WARNED" != *" $1 "* ]] || return 0
+    DK_SETTING_WARNED+="$1 "
+  fi
+  warn "Setting $1 is the old name of $2: rename it (deploykit CONTRACT.md, Settings)."
 }
 
 # dk_setting <NAME>: the value, or nothing.

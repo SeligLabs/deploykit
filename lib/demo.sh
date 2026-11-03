@@ -18,6 +18,9 @@ dk_demo_setup() {
     unset -f "$fn" 2>/dev/null || true
   done
   for id in ${DK_TARGET_IDS[@]+"${DK_TARGET_IDS[@]}"}; do
+    # The lanes' logs into the scratch cache too: the app's own (its last
+    # real build's) stay as they are.
+    printf -v "DKT_${id}_log" '%s' "$XDG_CACHE_HOME/$APP_SLUG/lanes/deploy-$id.log"
     for fn in preflight check after_prepare before_build after_build verify before_publish after_publish summary; do
       unset -f "${id}_$fn" 2>/dev/null || true
     done
