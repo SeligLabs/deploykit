@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# deploykit's command, for an app's CI and its developers (`yarn deploykit ...`):
+#
+#   deploykit checks list|matrix|run <name>|run-all   the app's check list
+#   deploykit aws-session ensure|watch                the AWS SSO session
+#   deploykit tui-build                               build the deploy UI, print its path
+#   deploykit version                                 the kit's version and API
+#
+# The deploy itself is the app's scripts/deploy/deploy.sh (yarn deploy).
+set -euo pipefail
+DK_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")/.." && pwd)"
+case "${1:-}" in
+  checks) shift; exec bash "$DK_ROOT/bin/checks.sh" "$@" ;;
+  aws-session) shift; exec bash "$DK_ROOT/bin/aws-session.sh" "$@" ;;
+  tui-build) exec bash "$DK_ROOT/tui/build.sh" ;;
+  version) sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/deploykit \1, API 1/p' "$DK_ROOT/package.json" | head -n 1 ;;
+  *)
+    sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+    exit 2
+    ;;
+esac

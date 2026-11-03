@@ -1,0 +1,24 @@
+{
+  "name": "@seliglabs/deploykit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The shared deploy engine for SeligLabs apps: groups and targets, drivers, the deploy UI.",
+  "license": "UNLICENSED",
+  "bin": {
+    "deploykit": "bin/deploykit"
+  },
+  "files": [
+    "deploykit.sh",
+    "lib/",
+    "stages/",
+    "drivers/",
+    "bin/",
+    "tui/*.go",
+    "tui/go.mod",
+    "tui/go.sum",
+    "tui/build.sh",
+    "env/",
+    "CONTRACT.md",
+    "CHANGELOG.md"
+  ]
+}

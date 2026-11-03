@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Stub: `bundle check` and `bundle exec fastlane <platform> <lane> [k:v ...]`,
+# keeping the Fastfile contract. Records every call in $STUB_LOG.
+echo "bundle $* (cwd ${PWD##*/})" >>"$STUB_LOG"
+[[ "$1" == check ]] && exit 0
+[[ "$1 $2" == "exec fastlane" ]] || exit 0
+platform=$3 lane=$4
+shift 4
+out=""
+for a in "$@"; do
+  case "$a" in out:*) out="${a#out:}" ;; esac
+done
+root="$(git rev-parse --show-toplevel)"
+case "$lane" in
+  check_build)
+    printf '%s 0\n' "${STUB_CHECK_STATE:-new}" >"$out"
+    ;;
+  build)
+    sleep "${STUB_BUILD_SECONDS:-1}"
+    [[ "${STUB_FAIL:-}" != "$platform-${PWD##*/}" ]] || { echo "* What went wrong:"; echo "stub build failed"; exit 1; }
+    version="$(node -p "require('$root/package.json').version")"
+    b="$(node -p "require('$root/package.json').build")"
+    work="$(mktemp -d)"
+    case "$platform" in
+      ios | tvos)
+        art="$(sed -n "s|^${PWD##*/} $platform ||p" "$STUB_ARTIFACTS")"
+        mkdir -p "$work/Payload/App.app"
+        dt=iphoneos; [[ $platform == tvos ]] && dt=appletvos
+        cat >"$work/Payload/App.app/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.example.fixture</string>
+<key>CFBundleShortVersionString</key><string>$version</string>
+<key>CFBundleVersion</key><string>$b</string>
+<key>DTPlatformName</key><string>$dt</string>
+</dict></plist>
+PLIST
+        echo "${API_URL:-}" >"$work/Payload/App.app/config"
+        for i in 1 2 3; do echo "▸ Compiling File$i.swift"; done
+        ;;
+      android)
+        art="$(sed -n "s|^${PWD##*/} android ||p" "$STUB_ARTIFACTS")"
+        mkdir -p "$work/base"
+        echo "${API_URL:-}" >"$work/base/config"
+        for i in 1 2 3; do echo "> Task :app:step$i"; done
+        ;;
+    esac
+    mkdir -p "$(dirname "$root/$art")"
+    (cd "$work" && zip -qr "$root/$art" .)
+    rm -rf "$work"
+    ;;
+  upload)
+    [[ -f "${STUB_WORK_GO:-/nonexistent}" ]] || true
+    echo "UPLOAD $platform ${PWD##*/} $*" >>"$STUB_LOG"
+    ;;
+esac

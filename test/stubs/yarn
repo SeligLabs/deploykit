@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+echo "yarn $* (cwd ${PWD##*/})" >>"$STUB_LOG"
+case "$*" in
+  *"api build"*) echo "built: fn_a" ;;
+  *prebuild*) echo "✔ Created native directory" ;;
+esac
+exit 0

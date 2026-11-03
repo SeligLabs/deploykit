@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+echo "keytool $*" >>"$STUB_LOG"
+echo "         SHA256: AA:BB:CC"

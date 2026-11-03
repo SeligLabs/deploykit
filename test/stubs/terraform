@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Stub: init, state, plan (-out, -detailed-exitcode 2), show -json, apply, output.
+[[ "$1" == -chdir=* ]] && shift
+echo "terraform $* (TF_VAR_push_key=${TF_VAR_push_key:-})" >>"$STUB_LOG"
+case "$1" in
+  init|import|force-unlock) exit 0 ;;
+  state) echo aws_lambda_function.a ;;
+  plan) for a in "$@"; do [[ $a == -out=* ]] && echo plan >"${a#-out=}"; done
+        echo 'aws_lambda_function.a: Refreshing state...'; exit "${STUB_PLAN_STATUS:-2}" ;;
+  show) echo '{"resource_changes":[{"mode":"managed","address":"aws_lambda_function.a","type":"aws_lambda_function","change":{"actions":["update"]}}]}' ;;
+  apply) echo 'aws_lambda_function.a: Modifications complete after 1s' ;;
+esac
+exit 0

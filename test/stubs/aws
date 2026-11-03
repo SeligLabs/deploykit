@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+echo "aws $*" >>"$STUB_LOG"
+case "$1 $2" in
+  "s3 cp") [[ "$*" == *tflock* ]] && exit 1 ;;
+  "s3api get-bucket-location") echo us-east-2 ;;
+esac
+exit 0

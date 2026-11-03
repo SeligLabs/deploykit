@@ -1,0 +1,31 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: tui/go.mod
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: The deploy UI
+        working-directory: tui
+        run: |
+          test -z "$(gofmt -l .)" || { echo "Files need gofmt:"; gofmt -l .; exit 1; }
+          go vet ./...
+          go test ./...
+      - name: shellcheck
+        if: runner.os == 'Linux'
+        run: shellcheck -x -S warning deploykit.sh lib/*.sh stages/*.sh drivers/*.sh bin/*.sh bin/deploykit test/run.sh test/stubs/*
+      - name: Scenarios
+        run: bash test/run.sh
