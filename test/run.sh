@@ -269,8 +269,6 @@ case_settings() {
   expect_rc 0
   expect_out "APPLE_TEAM_ID"
   grep -E 'APPLE_TEAM_ID +FROMENV +env' <<<"$OUT" >/dev/null || fail "APPLE_TEAM_ID isn't from env"
-  deploy "" settings
-  grep -E 'APPLE_TEAM_ID +TEAMFIXTURE +default' <<<"$OUT" >/dev/null || fail "APPLE_TEAM_ID isn't package.json's app.appleTeamId"
   grep -E 'ANDROID_UPLOAD_KEYSTORE_PASSWORD +•' <<<"$OUT" >/dev/null || fail "a password isn't masked"
   grep -E 'ANDROID_UPLOAD_KEY_ALIAS +upload +default' <<<"$OUT" >/dev/null || fail "the alias default"
   sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/release.env"

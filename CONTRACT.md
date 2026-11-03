@@ -206,7 +206,7 @@ Paths are taken relative to the app's root, and `~` is expanded. Drivers declare
 | `APP_STORE_CONNECT_API_KEY_ID` | Apple targets | same | `APP_STORE_CONNECT_API_KEY_KEY_ID` | same |
 | `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | Apple targets | same | same | same |
 | `APP_STORE_CONNECT_API_KEY_PATH` | Apple targets (default `~/.appstoreconnect/private_keys/AuthKey_<ID>.p8`) | `APP_STORE_CONNECT_API_KEY_KEY_PATH` | `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH` | `APP_STORE_CONNECT_API_KEY_KEY_PATH` |
-| `APPLE_TEAM_ID` | Apple targets (default package.json `app.appleTeamId`) | same | — | same |
+| `APPLE_TEAM_ID` | Apple targets | same | — | same |
 | `PLAY_JSON_KEY_PATH` | Android targets | `GOOGLE_PLAY_JSON_KEY_PATH` | `PLAY_SERVICE_ACCOUNT_JSON` | — |
 | `ANDROID_UPLOAD_KEYSTORE_PATH`, `_KEYSTORE_PASSWORD`, `_KEY_ALIAS` (default `upload`), `_KEY_PASSWORD` | Android targets with `--upload-key settings` | same | `IRIS_UPLOAD_*` in `~/.gradle/gradle.properties` (`--upload-key none`) | — |
 

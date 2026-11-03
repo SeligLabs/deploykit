@@ -13,7 +13,7 @@ The deploy reads Terraform's outputs live, and the scripts every app kept a copy
 - **`deploykit publish-site`:** the site driver's S3 + CloudFront sync for an app's CI (one implementation, `lib/site.sh`); replaces each app's `apps/web/scripts/deploy.sh`.
 - **`deploykit android-keystore`:** the one-time upload key, printing the `ANDROID_UPLOAD_*` lines for `env/release.env`.
 - **The deploy's own settings in deploy.sh:** `dk_config tui`, `notify`, `keep_logs` (the env still overrides for one run); `env_files` loads env files without a loader script.
-- **`--tv`:** an Android TV bundle must declare leanback. **`APPLE_TEAM_ID`** defaults to package.json `app.appleTeamId`.
+- **`--tv`:** an Android TV bundle must declare leanback.
 
 ## 0.0.3 (unreleased)
 

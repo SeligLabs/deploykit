@@ -120,10 +120,7 @@ dk_fastlane_settings() {
     dk_setting_declare APP_STORE_CONNECT_API_KEY_ISSUER_ID "The App Store Connect API key's issuer ID."
     dk_setting_declare APP_STORE_CONNECT_API_KEY_PATH "The key's .p8 file." \
       "$HOME/.appstoreconnect/private_keys/AuthKey_$(dk_setting APP_STORE_CONNECT_API_KEY_ID).p8"
-    # The team is a fact of the app, not of the machine: package.json
-    # app.appleTeamId, which a setting still overrides.
-    dk_setting_declare APPLE_TEAM_ID "The Apple Developer team that signs the app (developer.apple.com → Membership): package.json app.appleTeamId." \
-      "$(app_field appleTeamId)"
+    dk_setting_declare APPLE_TEAM_ID "The Apple Developer team that signs the app (developer.apple.com → Membership)."
   else
     dk_setting_declare PLAY_JSON_KEY_PATH "A Google Cloud service account's JSON key with release access in Play Console."
     if [[ "$(dk_t "$1" upload_key settings)" == settings ]]; then
