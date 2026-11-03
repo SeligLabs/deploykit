@@ -38,8 +38,11 @@ const out = lines.map(line => {
   if (next !== line) changed += 1;
   return next;
 });
-for (const [key, value] of values) {
-  if (seen.has(key)) continue;
+// Appended keys go under one marker line, as the apps' env-sync scripts
+// wrote them.
+const missing = [...values].filter(([key]) => !seen.has(key));
+if (missing.length) out.push('', '# ── Added by yarn env:sync ──');
+for (const [key, value] of missing) {
   out.push(`${key}=${quote(value)}`);
   changed += 1;
 }

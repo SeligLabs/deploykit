@@ -84,14 +84,19 @@ dk_outputs_read() {
   fi
 }
 
-# dk_outputs_ready_default: every mapped (non-map) output has a value.
+# dk_outputs_ready_default: every mapped (non-map) output has a value in
+# the state's last read, not merely in the shell: an env file's stale copy
+# must not make a lane think Infra is out (villagely's move found a web
+# deploy publishing to a stale bucket that way).
 dk_outputs_ready_default() {
-  local pair var
+  local pair var values=""
   local -a pairs=()
+  [[ -s "${WORK:-}/outputs.json" ]] && values="$(dk_outputs_values "$WORK/outputs.json")"
   read -ra pairs <<<"$(dk_c outputs)"
   for pair in ${pairs[@]+"${pairs[@]}"}; do
     var=${pair%%=*}
-    [[ "$var" == *'*'* || -n "${!var:-}" ]] || return 1
+    [[ "$var" == *'*'* ]] && continue
+    grep -q "^$var=." <<<"$values" || return 1
   done
   return 0
 }

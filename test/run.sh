@@ -129,8 +129,8 @@ case_full() {
 
 case_outputs_ready() {
   fresh ready
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
   deploy "$ALL"
   expect_rc 0
   # Outputs known: the lanes start in Preflight, before Lint.
@@ -156,8 +156,8 @@ case_failed_lint() {
 case_cancel() {
   fresh cancel
   local head
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
   head="$(git -C "$APP" rev-parse HEAD)"
   STUB_BUILD_SECONDS=20 deploy "\n2\nn\n3\n"
   expect_rc 1
@@ -203,8 +203,8 @@ case_sites_only() {
 
 case_group_command() {
   fresh mobile
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
   deploy "1\n" mobile
   expect_rc 0
   expect_out "iOS: TestFlight 1.0.0 (10)."
@@ -241,8 +241,8 @@ case_infra() {
 
 case_reuse() {
   fresh reuse
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
   deploy "1\n" mobile:ios
   expect_rc 0
   : >"$SCRATCH/stub.log"
@@ -255,8 +255,8 @@ case_reuse() {
 
 case_already_uploaded() {
   fresh uploaded
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
   STUB_CHECK_STATE=uploaded deploy "1\n" mobile
   expect_rc 0
   expect_out "iOS: 1.0.0 (10) was already on TestFlight."
@@ -312,8 +312,8 @@ expect_ios_log() { grep -qF -- "$1" <<<"$(ios_lane_log)" || fail "the iOS lane's
 # A target command with the outputs in place: just the iOS lane.
 ios_ready() {
   fresh "$1"
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
 }
 
 case_watch_missing() {
@@ -372,8 +372,8 @@ case_sso_margin() {
 # --tv: an Android TV bundle without leanback stops before the upload.
 case_tv_leanback() {
   fresh leanback
-  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
-  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  # Infra is already out: the state has its outputs.
+  touch "$SCRATCH/tf-applied"
   STUB_NO_LEANBACK=1 deploy "1\n" tv:androidtv
   expect_rc 1
   grep -qF "doesn't declare android.software.leanback" "$APP/apps/tv/build/deploy-androidtv.log" || fail "no leanback message in the lane's log"
@@ -420,6 +420,17 @@ case_outputs_live() {
     fail "the build embeds $(unzip -p "$APP/apps/mobile/build/deploy/fixture.ipa" Payload/App.app/config), not the state's API_URL"
 }
 
+# No outputs in the state: an env file's copy doesn't count as Infra being out.
+case_outputs_stale_only() {
+  fresh stale-only
+  echo "API_URL=https://stale.example.invalid" >>"$APP/env/.env"
+  git -C "$APP" commit -qam stale && git -C "$APP" push -q origin main
+  deploy "1\n" mobile:ios
+  expect_rc 1
+  expect_out "iOS needs Infra's outputs"
+  [[ "$(uploads)" == 0 ]] || fail "uploaded a build made with the env file's stale value"
+}
+
 # yarn deploy env-sync: the live outputs into env/.env, in place.
 case_env_sync() {
   fresh env-sync
@@ -443,7 +454,7 @@ case_usage() {
 
 SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
   sites_only first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
-  no_simulators tv_leanback bump publish_site outputs_live env_sync sso_margin settings demo usage)
+  no_simulators tv_leanback bump publish_site outputs_live outputs_stale_only env_sync sso_margin settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
 for s in "${SCENARIOS[@]}"; do
   CASE_OK=1
