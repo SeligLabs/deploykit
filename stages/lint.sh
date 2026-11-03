@@ -22,10 +22,18 @@ lint_timing() {
 
 lint_stage() {
   stage Lint
-  local names count status finished=0 line name
+  local names count status finished=0 line name lock
   names=" $(lint_steps) "
   count="$(wc -w <<<"$names" | tr -d ' ')"
   progress_total "$count" "checks"
+  # dk_config lint_lock <name>: the checks build in a directory a lane builds
+  # in too (a web export a target's --lock shares), so Lint holds that lock
+  # for its whole run.
+  lock="$(dk_c lint_lock)"
+  if [[ -n "$lock" ]]; then
+    spinner_label "waiting for the $lock lock (a lane is building)"
+    until mkdir "$WORK/$lock.lock" 2>/dev/null; do sleep 2; done
+  fi
 
   set +e
   CI_CHECKS_LOG_DIR="$WORK/lint" lint_checks run-all 2>&1 </dev/null |
@@ -67,6 +75,7 @@ lint_stage() {
     done
   status=${PIPESTATUS[0]}
   set -e
+  [[ -z "$lock" ]] || rmdir "$WORK/$lock.lock"
   if ((status != 0)); then
     LINT_FAILED=1
     die "Lint failed. Nothing was deployed."

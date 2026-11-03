@@ -21,6 +21,40 @@ PROFILE="${AWS_PROFILE:-}"
 profile_args=()
 [[ -n "$PROFILE" ]] && profile_args=(--profile "$PROFILE")
 
+# The SSO token must outlive a deploy, not just be valid now: a deploy runs
+# for half an hour or more, and Terraform, which gets its credentials from
+# the token, fails when it lapses partway (iris, 2026-11-03: the check passed
+# and the plan failed eight minutes later on "refresh cached SSO token
+# failed"). So a token with under AWS_SESSION_MIN_SECONDS (1800) left counts
+# as expired, and ensure logs in again before anything starts.
+MIN_SECONDS="${AWS_SESSION_MIN_SECONDS:-1800}"
+
+# token_seconds_left: seconds until the profile's SSO token expires (its
+# cache file is named by the sha1 of the sso_session name, or of the start
+# URL for a legacy profile); 0 when there is no token; empty when the profile
+# isn't an SSO profile, or there is no profile.
+token_seconds_left() {
+  local key cache expires now
+  [[ -n "$PROFILE" ]] || return 0
+  key=$(aws configure get sso_session --profile "$PROFILE" 2>/dev/null) ||
+    key=$(aws configure get sso_start_url --profile "$PROFILE" 2>/dev/null) || return 0
+  [[ -n "$key" ]] || return 0
+  cache="$HOME/.aws/sso/cache/$(printf '%s' "$key" | shasum | cut -c1-40).json"
+  expires=$(jq -r '.expiresAt // empty' "$cache" 2>/dev/null)
+  if [[ -z "$expires" ]]; then
+    echo 0
+    return 0
+  fi
+  # Apple's date, then GNU's.
+  expires=$(date -u -j -f '%Y-%m-%dT%H:%M:%SZ' "$expires" +%s 2>/dev/null ||
+    date -u -d "$expires" +%s 2>/dev/null) || {
+    echo 0
+    return 0
+  }
+  now=$(date -u +%s)
+  echo $((expires - now))
+}
+
 # 0 = valid, 1 = SSO session expired (login fixes it), 2 = other failure
 # (offline, no profile, ...: logging in won't help).
 #
@@ -32,7 +66,13 @@ profile_args=()
 # use the SSO token, refreshing it the usual way (written back to the real
 # token cache) when it is only due for a refresh.
 check() {
-  local out home status f
+  local out home status f left
+  left=$(token_seconds_left)
+  if [[ -n "$left" ]] && ((left < MIN_SECONDS)); then
+    ((left <= 0)) ||
+      echo "[aws-session] The SSO token for '$PROFILE' expires in $((left / 60)) min (under $((MIN_SECONDS / 60))): logging in again." >&2
+    return 1
+  fi
   home="$(mktemp -d "${TMPDIR:-/tmp}/aws-session.XXXXXX")" || return 2
   mkdir -p "$home/.aws"
   for f in config credentials sso; do

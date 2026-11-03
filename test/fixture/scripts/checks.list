@@ -1,4 +1,4 @@
 # name|lang|lock|command
 go-types|go|*|echo types
-js-lint|js|-|echo lint
+js-lint|js|-|echo "LINT start" >>"$STUB_LOG"; sleep 1; echo "LINT end" >>"$STUB_LOG"
 js-test|js|-|test -z "${TF_VAR_push_key:-}" || { echo "a secret reached Lint"; exit 1; }; test "${STUB_LINT_FAIL:-}" != js-test

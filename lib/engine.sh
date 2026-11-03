@@ -494,6 +494,11 @@ dk_main() {
     AWS_PROFILE="$(dk_c aws_profile)"
     export AWS_PROFILE
   fi
+  # The stack's region, when the app's env files don't set it.
+  if [[ -z "${AWS_REGION:-}" && -n "$(dk_c aws_region)" ]]; then
+    AWS_REGION="$(dk_c aws_region)"
+    export AWS_REGION
+  fi
   DK_SETTINGS_FILES="$(dk_c settings_files env/release.env)"
   dk_identity
   dk_parse "$@"

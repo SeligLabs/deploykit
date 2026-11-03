@@ -7,13 +7,15 @@ dk_config api 1 env_loader "bash scripts/with-env.sh" version_cmd "node scripts/
   infra_dir infrastructure state_bucket "terraform-state-{slug}" reload_env "env/.env"
 # A partial S3 backend and per-stage variables, expanded in the plan's thread.
 # shellcheck disable=SC2016 # expanded by the kit
+# Lint and the Mac app's export build in one directory: they take turns.
+dk_config lint_lock web
 dk_config tf_init_args '-reconfigure -backend-config=key=$FIXTURE_STAGE.tfstate' tf_plan_args '-var=stage=$FIXTURE_STAGE'
 
 
 dk_group web "Web"
 dk_target web app --driver site --label "app.example.com   the web app" --waits-for outputs \
   --build "mkdir -p apps/web/out/_next/static && echo app > apps/web/out/index.html" --out apps/web/out \
-  --bucket WEB_BUCKET --distribution WEB_DISTRIBUTION_ID --url WEB_URL
+  --bucket WEB_BUCKET --distribution WEB_DISTRIBUTION_ID --url WEB_URL --lock web
 dk_target web www --driver site --label "www.example.com   the marketing site" \
   --build "mkdir -p apps/www/out && echo www > apps/www/out/index.html" --out apps/www/out \
   --bucket WWW_BUCKET --keep ".well-known/*"
@@ -43,7 +45,8 @@ infra_build_hook() { yarn workspace @fixture/api build; }
 infra_secrets_hook() { export TF_VAR_push_key=secret-value; }
 after_apply_hook() { echo "API_URL=https://api.example.invalid" >>"$ROOT/env/.env"; echo "synced"; }
 ios_before_build() { echo "ios_before_build ran"; }
-macos_build() { step Package "Package the Mac app"; echo "packaged"; [[ "${STUB_FAIL:-}" != macos ]] || die "macOS package failed (stub)"; }
+macos_export() { echo "LOCK web taken" >>"$STUB_LOG"; sleep 2; echo "LOCK web released" >>"$STUB_LOG"; }
+macos_build() { step Package "Package the Mac app"; with_lock web macos_export; echo "packaged"; [[ "${STUB_FAIL:-}" != macos ]] || die "macOS package failed (stub)"; }
 macos_publish() { step Upload "Upload the DMG"; aws s3 cp mac.dmg s3://feed/; dk_result macos "DMG $VERSION ($BUILD)"; }
 androidtv_after_publish() { echo "Fire TV: upload the APK by hand."; }
 

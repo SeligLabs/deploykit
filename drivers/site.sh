@@ -40,7 +40,12 @@ dk_site_make() {
   out="$ROOT/$(dk_t "$id" out)"
   step Build "Build $(dk_t "$id" name)"
   spinner_label "building"
-  if [[ -n "$build" ]]; then
+  if [[ -n "$build" && -n "$(dk_t "$id" lock)" ]]; then
+    # --lock <name>: the build takes turns with whatever else holds it (Lint's
+    # lint_lock, another target's export into the same directory).
+    spinner_label "waiting for the $(dk_t "$id" lock) lock"
+    with_lock "$(dk_t "$id" lock)" bash -c "cd '$ROOT' && $build" || die "The build failed ($build)."
+  elif [[ -n "$build" ]]; then
     (cd "$ROOT" && bash -c "$build") || die "The build failed ($build)."
   fi
   [[ -d "$out" ]] || die "The build wrote no $out."

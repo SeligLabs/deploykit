@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 echo "aws $*" >>"$STUB_LOG"
+# STUB_SSO_SESSION: the profile is an SSO profile with that session name.
+if [[ "$1 $2 $3" == "configure get sso_session" ]]; then
+  [[ -n "${STUB_SSO_SESSION:-}" ]] || exit 1
+  echo "$STUB_SSO_SESSION"
+  exit 0
+fi
+[[ "$1" == configure ]] && exit 1
 case "$1 $2" in
   "s3 cp") [[ "$*" == *tflock* ]] && exit 1 ;;
   "s3api get-bucket-location") echo us-east-2 ;;

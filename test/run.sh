@@ -102,6 +102,13 @@ case_full() {
   expect_log "xcodebuild test .*-scheme FixtureWidgets -destination id=IPHONE-UDID"
   (($(line_of 'scheme FixtureWatch' "$SCRATCH/stub.log") < $(line_of 'fastlane ios build' "$SCRATCH/stub.log"))) || fail "the watch tests came after the archive"
   git -C "$SCRATCH/origin-full.git" rev-parse -q --verify refs/tags/v1.0.0+11 >/dev/null || fail "no tag v1.0.0+11 on origin"
+  # lint_lock: the Mac app's export (holding the web lock) and Lint's checks
+  # never overlap.
+  local taken released lint_start lint_end
+  taken=$(line_of 'LOCK web taken' "$SCRATCH/stub.log") released=$(line_of 'LOCK web released' "$SCRATCH/stub.log")
+  lint_start=$(line_of 'LINT start' "$SCRATCH/stub.log") lint_end=$(line_of 'LINT end' "$SCRATCH/stub.log")
+  ((taken > 0 && lint_start > 0)) || fail "no export or no Lint in the stub log"
+  ((released < lint_start || lint_end < taken)) || fail "the export ran while Lint held the web lock"
   # No log holds the environment (a bare export in Prepare printed it all).
   ! grep -rlq 'declare -x' "$APP/apps" "$SCRATCH/cache" 2>/dev/null || fail "a log holds the environment: $(grep -rl 'declare -x' "$APP/apps" "$SCRATCH/cache" | head -n 1)"
   no_leftovers
@@ -329,6 +336,26 @@ case_no_simulators() {
   expect_log "^UPLOAD ios mobile"
 }
 
+# The SSO token must outlive the deploy: under AWS_SESSION_MIN_SECONDS left
+# counts as expired (without a terminal, ensure then says to log in).
+case_sso_margin() {
+  local home="$SCRATCH/sso-home" cache
+  mkdir -p "$home/.aws/sso/cache"
+  cache="$home/.aws/sso/cache/$(printf '%s' deploy-sso | shasum | cut -c1-40).json"
+  sso_ensure() {
+    OUT="$(env HOME="$home" PATH="$KIT/test/stubs:$PATH" STUB_LOG="$SCRATCH/stub.log" STUB_SSO_SESSION=deploy-sso \
+      AWS_PROFILE=stub bash "$KIT/bin/aws-session.sh" ensure 2>&1 </dev/null)"
+    RC=$?
+  }
+  printf '{"expiresAt":"%s"}' "$(date -u -r $(($(date +%s) + 630)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d @$(($(date +%s) + 630)) +%Y-%m-%dT%H:%M:%SZ)" >"$cache"
+  sso_ensure
+  [[ "$RC" != 0 ]] || fail "a token with 10 minutes left passed"
+  expect_out "expires in 10 min (under 30)"
+  printf '{"expiresAt":"%s"}' "$(date -u -r $(($(date +%s) + 7200)) +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d @$(($(date +%s) + 7200)) +%Y-%m-%dT%H:%M:%SZ)" >"$cache"
+  sso_ensure
+  expect_rc 0
+}
+
 case_usage() {
   fresh usage
   deploy "" nosuch
@@ -338,7 +365,7 @@ case_usage() {
 
 SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
   sites_only first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
-  no_simulators settings demo usage)
+  no_simulators sso_margin settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
 for s in "${SCENARIOS[@]}"; do
   CASE_OK=1

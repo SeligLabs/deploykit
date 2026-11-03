@@ -53,6 +53,7 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `reload_env` | none | env files read again, over the shell, after the apply has synced outputs into them (or define `reload_env_hook`) |
 | `slug`, `name`, `bundle_id` | package.json `app.slug`, `app.displayName`, `app.bundleId` | the app's names |
 | `aws_profile` | none | AWS_PROFILE when the environment has none |
+| `aws_region` | none | AWS_REGION (the stack's region) when the environment has none |
 | `version_cmd` | `node scripts/version.mjs` | `<build\|patch\|minor\|major> [--breaking]` or `set <version> <build> [--breaking]`, writing package.json `version` and `build` |
 | `version_files` | `package.json` | what the bump commit adds |
 | `min_build` | `no` | `yes`: a bump asks whether it breaks older builds (`--breaking`), when API + Infra is ticked |
@@ -64,6 +65,7 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `infra_label` | `build the API, terraform plan + apply` | its checklist text |
 | `state_bucket` | none | the S3 backend bucket (`{slug}` is replaced), for `release_own_lock` and `state_bucket_ensure` |
 | `state_key` | `prod.tfstate` | the state object's key |
+| `lint_lock` | none | a lock Lint holds for its whole run, for checks that build where a lane builds too (a target's `--lock`, a `with_lock` in a hook) |
 | `tf_parallelism` | 30 | Terraform's `-parallelism` |
 | `tf_init_args` | none | extra `terraform init` arguments, e.g. a partial S3 backend's `-reconfigure -backend-config=key=$STAGE.tfstate`; single-quoted, expanded in the plan's thread after `infra_secrets_hook` |
 | `tf_plan_args` | none | extra `terraform plan` arguments, e.g. `-var-file=environments/$STAGE.tfvars -var=stage=$STAGE`, expanded the same way; the saved plan carries them to the apply |
@@ -103,6 +105,7 @@ build (check → prepare → build → verify)  ── gate ──  publish
 - `--keep "<pattern ...>"`: excluded from `--delete`.
 - `--immutable <dir>`: default `_next/static`, cached for a year.
 - `--early`: build beside Lint. By default the site builds after the gate.
+- `--lock <name>`: the build takes turns with whatever holds that lock (`lint_lock`, another target's build into the same directory).
 
 Steps: `Gate Build Upload Invalidate`.
 
@@ -175,7 +178,7 @@ The engine calls each hook only when the app has defined it.
 | `<id>_after_publish` | foreground, after the lanes join | a note to the person deploying |
 | `<id>_summary` | Start | the target's line |
 
-Helpers an app may call: `step`, `step_mark`, `spinner_label`, `progress_total`, `progress_set`, `thread_run`, `with_lock`, `dk_result`, `dk_setting`, `dk_setting_path`, `dk_expo_prebuild`, `state_bucket_ensure`, `state_bucket_adopt`, `dk_plan_json`, `dk_plist`, `die`, `warn`, `confirm`. Variables an app may read: `ROOT`, `WORK`, `VERSION`, `BUILD`, `TAG`, `NOTES_FILE`, `APP_SLUG`, `APP_NAME`, `APP_BUNDLE_ID`, `DO_INFRA`, `DO_RELEASE`. Any kit function can be redefined after `source` as a last resort, at the app's own risk across upgrades.
+Helpers an app may call: `step`, `step_mark`, `spinner_label`, `progress_total`, `progress_set`, `thread_run`, `with_lock`, `dk_result`, `dk_setting`, `dk_setting_path`, `dk_expo_prebuild`, `state_bucket_ensure`, `state_bucket_adopt`, `dk_plan_json`, `dk_plist`, `die`, `warn`, `confirm`. Variables an app may read: `ROOT`, `WORK`, `VERSION`, `BUILD`, `TAG`, `NOTES_FILE`, `APP_SLUG`, `APP_NAME`, `APP_BUNDLE_ID`, `DO_INFRA`, `DO_RELEASE`. `bin/aws-session.sh` (Preflight's AWS check) logs in again when the SSO token has under `AWS_SESSION_MIN_SECONDS` (1800) left, so it outlives the deploy. Any kit function can be redefined after `source` as a last resort, at the app's own risk across upgrades.
 
 ## Settings
 
