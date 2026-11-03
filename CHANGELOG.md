@@ -2,7 +2,7 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
-## Unreleased
+## 0.0.4 (2026-11-03)
 
 The deploy reads Terraform's outputs live, and the scripts every app kept a copy of are the kit's.
 
