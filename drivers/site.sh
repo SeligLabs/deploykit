@@ -22,6 +22,8 @@ dk_site_steps() {
   if [[ "$(dk_t "$1" early)" == 1 ]]; then echo "Build Gate Upload Invalidate"; else echo "Gate Build Upload Invalidate"; fi
 }
 dk_site_tools() { echo aws; }
+# A site has no version of its own: ticked alone, it asks none.
+dk_site_versioned() { echo no; }
 dk_site_needs_aws() { echo yes; }
 dk_site_summary() {
   local url

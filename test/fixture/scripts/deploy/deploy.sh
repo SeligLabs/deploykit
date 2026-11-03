@@ -5,6 +5,10 @@ source "$DK/deploykit.sh"
 
 dk_config api 1 env_loader "bash scripts/with-env.sh" version_cmd "node scripts/version.mjs" min_build yes \
   infra_dir infrastructure state_bucket "terraform-state-{slug}" reload_env "env/.env"
+# A partial S3 backend and per-stage variables, expanded in the plan's thread.
+# shellcheck disable=SC2016 # expanded by the kit
+dk_config tf_init_args '-reconfigure -backend-config=key=$FIXTURE_STAGE.tfstate' tf_plan_args '-var=stage=$FIXTURE_STAGE'
+
 
 dk_group web "Web"
 dk_target web app --driver site --label "app.example.com   the web app" --waits-for outputs \

@@ -233,7 +233,7 @@ dk_options() {
     if ((DO_INFRA + DO_RELEASE > 0)) || dk_any_on; then break; fi
     echo "Nothing ticked. Tick at least one."
   done
-  if dk_any_on || ((DO_RELEASE)); then
+  if dk_any_versioned || ((DO_RELEASE)); then
     version_choose
   else
     # Nothing ships a version: keep it, no tag.

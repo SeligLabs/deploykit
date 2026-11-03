@@ -171,6 +171,16 @@ dk_driver() {
 }
 
 # dk_target_steps <id>: its steps; Gate only where a lane waits for Infra.
+# dk_any_versioned: a ticked target ships a version (a store build does; a
+# site doesn't: its driver says versioned no), so the version is asked.
+dk_any_versioned() {
+  local id
+  for id in $(dk_targets_on); do
+    [[ "$(dk_driver "$id" versioned)" == no ]] || return 0
+  done
+  return 1
+}
+
 dk_target_steps() {
   local steps out="" s
   steps="$(dk_t "$1" steps)"

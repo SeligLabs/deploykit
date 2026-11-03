@@ -34,7 +34,7 @@ dk_main "$@"
 
 | Command | Runs |
 | --- | --- |
-| `yarn deploy` | the grouped checklist (API + Infra, every group and target, Release), the version, then Start with the plan and the store note; then everything ticked, nothing asked |
+| `yarn deploy` | the grouped checklist (API + Infra, every group and target, Release), the version (not when only sites are ticked and Release isn't: a site has no version), then Start with the plan and the store note; then everything ticked, nothing asked |
 | `yarn deploy <group>` | that group's targets: Preflight, Start, build and publish. No version change, no Infra |
 | `yarn deploy <group>:<target>` | one target, the same way |
 | `yarn deploy infra [plan args]` | Preflight → API → Infra, with a `[y/n]` before the apply |
@@ -65,6 +65,8 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `state_bucket` | none | the S3 backend bucket (`{slug}` is replaced), for `release_own_lock` and `state_bucket_ensure` |
 | `state_key` | `prod.tfstate` | the state object's key |
 | `tf_parallelism` | 30 | Terraform's `-parallelism` |
+| `tf_init_args` | none | extra `terraform init` arguments, e.g. a partial S3 backend's `-reconfigure -backend-config=key=$STAGE.tfstate`; single-quoted, expanded in the plan's thread after `infra_secrets_hook` |
+| `tf_plan_args` | none | extra `terraform plan` arguments, e.g. `-var-file=environments/$STAGE.tfvars -var=stage=$STAGE`, expanded the same way; the saved plan carries them to the apply |
 | `settings_files` | `env/release.env` | where settings are read from (see Settings) |
 
 ## Groups and targets

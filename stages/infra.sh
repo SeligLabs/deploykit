@@ -196,7 +196,11 @@ dk_plan_json() {
 infra_init() {
   cd "$INFRA"
   dk_hook infra_secrets_hook
-  terraform init -input=false >/dev/null
+  local -a args=()
+  # dk_config tf_init_args, expanded here (in the plan's thread, after the
+  # secrets): a partial S3 backend's -backend-config=key=$STAGE.tfstate.
+  eval "args=($(dk_c tf_init_args))"
+  terraform init -input=false ${args[@]+"${args[@]}"} >/dev/null
   dk_hook infra_init_hook
   cd "$ROOT"
 }
@@ -206,12 +210,16 @@ infra_init() {
 # shellcheck disable=SC2120 # plan_step passes -lock=false
 infra_plan_run() {
   local status=0
+  local -a args=()
+  # dk_config tf_plan_args, expanded here: -var-file=environments/$STAGE.tfvars.
+  # The saved plan carries them to the apply.
+  eval "args=($(dk_c tf_plan_args))"
   cd "$INFRA"
   # Resources and data sources in state: roughly how many the plan refreshes.
   progress_total "$(terraform state list 2>/dev/null | wc -l | tr -d ' ')" "resources refreshed"
   run_tf ': (Refreshing state\.\.\.|Read complete after)' -- \
     plan -input=false -detailed-exitcode -parallelism="$TF_PARALLELISM" -out="$WORK/tfplan" \
-    "$@" ${TF_ARGS[@]+"${TF_ARGS[@]}"} || status=$?
+    ${args[@]+"${args[@]}"} "$@" ${TF_ARGS[@]+"${TF_ARGS[@]}"} || status=$?
   ((status == 0 || status == 2)) || exit "$status"
   echo "$status" >"$WORK/tfplan-status"
   cd "$ROOT"

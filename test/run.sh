@@ -169,6 +169,18 @@ case_unticked_group() {
   expect_log "^UPLOAD tvos tv"
 }
 
+# Only sites ticked: nothing ships a version, so none is asked (the input
+# goes straight from the checklist to Start).
+case_sites_only() {
+  fresh sites-only
+  deploy "5 8 11 13\n1\n"
+  expect_rc 0
+  expect_no_out "Version for this deploy"
+  expect_out "app: published to https://app.example.com."
+  [[ "$(uploads)" == 0 ]] || fail "$(uploads) uploads, want none"
+  [[ "$(build_now)" == 10 ]] || fail "the build moved to $(build_now)"
+}
+
 case_group_command() {
   fresh mobile
   echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
@@ -202,6 +214,9 @@ case_infra() {
   expect_out "synced"
   expect_log "terraform apply"
   expect_log "yarn workspace @fixture/api build"
+  # dk_config tf_init_args and tf_plan_args, with the stage expanded.
+  expect_log "terraform init -input=false -reconfigure -backend-config=key=prod.tfstate"
+  expect_log "terraform plan .*-var=stage=prod"
 }
 
 case_reuse() {
@@ -310,7 +325,7 @@ case_usage() {
 }
 
 SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
-  first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
+  sites_only first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
   no_simulators settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
 for s in "${SCENARIOS[@]}"; do
