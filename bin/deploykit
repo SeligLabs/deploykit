@@ -3,6 +3,8 @@
 #
 #   deploykit checks list|matrix|run <name>|run-all   the app's check list
 #   deploykit aws-session ensure|watch                the AWS SSO session
+#   deploykit publish-site --out <dir> --bucket <name> [...]   a built site to S3 + CloudFront (CI)
+#   deploykit android-keystore [<dir>]                 create the app's Android upload key, once
 #   deploykit tui-build                               build the deploy UI, print its path
 #   deploykit version                                 the kit's version and API
 #
@@ -12,10 +14,12 @@ DK_ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo 
 case "${1:-}" in
   checks) shift; exec bash "$DK_ROOT/bin/checks.sh" "$@" ;;
   aws-session) shift; exec bash "$DK_ROOT/bin/aws-session.sh" "$@" ;;
+  publish-site) shift; exec bash "$DK_ROOT/bin/publish-site.sh" "$@" ;;
+  android-keystore) shift; exec bash "$DK_ROOT/bin/android-keystore.sh" "$@" ;;
   tui-build) exec bash "$DK_ROOT/tui/build.sh" ;;
   version) sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/deploykit \1, API 1/p' "$DK_ROOT/package.json" | head -n 1 ;;
   *)
-    sed -n '2,8p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
+    sed -n '2,10p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2
     exit 2
     ;;
 esac

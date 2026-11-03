@@ -3,10 +3,13 @@
 DK="${DEPLOYKIT_DEV:?the tests point DEPLOYKIT_DEV at the kit}"
 source "$DK/deploykit.sh"
 
-dk_config api 1 env_loader "bash scripts/with-env.sh" version_cmd "node scripts/version.mjs" min_build yes \
+dk_config api 1 env_loader "bash scripts/with-env.sh" min_build yes \
+  version_files "package.json native/Info.plist native/project.pbxproj native/build.gradle" \
   infra_dir infrastructure state_bucket "terraform-state-{slug}" reload_env "env/.env"
 # A partial S3 backend and per-stage variables, expanded in the plan's thread.
 # shellcheck disable=SC2016 # expanded by the kit
+# Terraform's outputs, read live; env-sync writes them into env/.env for dev.
+dk_config outputs "API_URL=api_url *_TABLE=table_names" outputs_files "env/.env"
 # Lint and the Mac app's export build in one directory: they take turns.
 dk_config lint_lock web
 dk_config tf_init_args '-reconfigure -backend-config=key=$FIXTURE_STAGE.tfstate' tf_plan_args '-var=stage=$FIXTURE_STAGE'
@@ -31,7 +34,7 @@ dk_group tv "TV"
 dk_target tv tvos --driver fastlane --platform tvos --dir apps/tv --artifact "apps/tv/build/deploy/{slug}-tv.ipa" \
   --lock xcode --env "EXPO_TV=1" --waits-for outputs
 dk_target tv androidtv --driver fastlane --platform android --dir apps/tv --artifact apps/tv/android/app-release.aab \
-  --lock gradle --play --version-offset 1000000 --env "EXPO_TV=1"
+  --lock gradle --play --version-offset 1000000 --env "EXPO_TV=1" --tv
 
 dk_group desktop "Desktop"
 dk_target desktop macos --driver fn --label "the DMG feed" --steps "Package Gate Upload" --needs-aws yes
@@ -40,14 +43,13 @@ dk_target desktop macos --driver fn --label "the DMG feed" --steps "Package Gate
 dk_alias PLAY_JSON_KEY_PATH PLAY_SERVICE_ACCOUNT_JSON
 
 # Hooks, as an app has them.
-outputs_ready() { [[ -n "${API_URL:-}" ]]; }
 infra_build_hook() { yarn workspace @fixture/api build; }
 infra_secrets_hook() { export TF_VAR_push_key=secret-value; }
-after_apply_hook() { echo "API_URL=https://api.example.invalid" >>"$ROOT/env/.env"; echo "synced"; }
+after_apply_hook() { echo "synced"; }
 ios_before_build() { echo "ios_before_build ran"; }
 macos_export() { echo "LOCK web taken" >>"$STUB_LOG"; sleep 2; echo "LOCK web released" >>"$STUB_LOG"; }
 macos_build() { step Package "Package the Mac app"; with_lock web macos_export; echo "packaged"; [[ "${STUB_FAIL:-}" != macos ]] || die "macOS package failed (stub)"; }
 macos_publish() { step Upload "Upload the DMG"; aws s3 cp mac.dmg s3://feed/; dk_result macos "DMG $VERSION ($BUILD)"; }
-androidtv_after_publish() { echo "Fire TV: upload the APK by hand."; }
+androidtv_after_publish() { echo "Fire TV: upload the APK by hand. (tables ${USERS_TABLE:-} ${ITEM_TAGS_TABLE:-})"; }
 
 dk_main "$@"

@@ -40,6 +40,9 @@ dk_main "$@"
 | `yarn deploy infra [plan args]` | Preflight → API → Infra, with a `[y/n]` before the apply |
 | `yarn deploy settings` | every setting the declared targets need, its value (masked) and source, or what's missing (exit 1) |
 | `yarn deploy demo` | this app's targets through the engine and the UI, touching nothing |
+| `yarn deploy bump <build\|patch\|minor\|major>` / `bump set <x.y.z> [build] [--force] [--breaking]` | the version by hand: package.json and `version_files`, no commit |
+| `yarn deploy env-sync` | Terraform's outputs (`outputs`) into the env files (`outputs_files`), for local dev servers |
+| `yarn deploy secrets status\|store <var> <file>\|run <cmd...>` | Terraform's secrets (`tf_secrets`) in the macOS keychain |
 | `yarn deploy help` | the app's groups and targets |
 
 In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain output, and `DEPLOY_NOTIFY=0` to turn off the macOS notification at the end. `DEPLOY_SKIP_GIT_CHECK=1` skips the origin/main check, for testing on a branch only.
@@ -49,13 +52,14 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `api` | (required) | the API the app is written for; must equal the kit's |
+| `env_files` | none | env files read into the deploy's shell (values already there win), for an app without a loader script: `env/prod.env`, never a local-dev file |
 | `env_loader` | none | a command line the deploy re-runs itself under to load the app's env files, e.g. `env APP_ENV=prod bash scripts/with-env.sh` |
 | `reload_env` | none | env files read again, over the shell, after the apply has synced outputs into them (or define `reload_env_hook`) |
 | `slug`, `name`, `bundle_id` | package.json `app.slug`, `app.displayName`, `app.bundleId` | the app's names |
 | `aws_profile` | none | AWS_PROFILE when the environment has none |
 | `aws_region` | none | AWS_REGION (the stack's region) when the environment has none |
-| `version_cmd` | `node scripts/version.mjs` | `<build\|patch\|minor\|major> [--breaking]` or `set <version> <build> [--breaking]`, writing package.json `version` and `build` |
-| `version_files` | `package.json` | what the bump commit adds |
+| `version_cmd` | the kit's (`bin/version.mjs`) | an app's own bump command instead, taking `<build\|patch\|minor\|major> [--breaking]` or `set <version> <build> [--breaking]` |
+| `version_files` | `package.json` | what the bump writes and commits: besides package.json, a committed native project's `*.plist` (CFBundleShortVersionString, CFBundleVersion), `*.pbxproj` (MARKETING_VERSION, CURRENT_PROJECT_VERSION where they equal the current ones) and `build.gradle` (versionName, versionCode) |
 | `min_build` | `no` | `yes`: a bump asks whether it breaks older builds (`--breaking`), when API + Infra is ticked |
 | `checks` | `scripts/checks.list` | the check list (see Checks) |
 | `lint` | `yes` | `no`: no Lint stage |
@@ -70,6 +74,10 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `tf_init_args` | none | extra `terraform init` arguments, e.g. a partial S3 backend's `-reconfigure -backend-config=key=$STAGE.tfstate`; single-quoted, expanded in the plan's thread after `infra_secrets_hook` |
 | `tf_plan_args` | none | extra `terraform plan` arguments, e.g. `-var-file=environments/$STAGE.tfvars -var=stage=$STAGE`, expanded the same way; the saved plan carries them to the apply |
 | `settings_files` | `env/release.env` | where settings are read from (see Settings) |
+| `tui`, `notify`, `keep_logs` | `yes`, `yes`, `5` | the deploy UI, the notification at the end, how many runs' logs to keep; `DEPLOY_TUI=0`, `DEPLOY_NOTIFY=0` and `DEPLOY_KEEP_LOGS` in the shell override them for one run |
+| `outputs` | none | Terraform outputs read live from the state, as `NAME=output` words (`NAME_*=map_output`: one variable per key); exported in Preflight and after the apply, over the env files. With it, `--waits-for outputs` waits until every mapped output has a value (unless the app defines `outputs_ready`) |
+| `outputs_files` | `env/${APP_ENV:-prod}.env` | where `yarn deploy env-sync` writes them: `file` (all), `file!A!B` (all but), `file:A,B` (only); an `env_sync_hook <json>` replaces it |
+| `tf_secrets`, `tf_secrets_service` | none, `<slug>-tf` | Terraform variables kept in the macOS keychain, exported as `TF_VAR_<name>` inside the plan's thread only (`yarn deploy secrets`) |
 
 ## Groups and targets
 
@@ -125,6 +133,7 @@ Steps: `Gate Build Upload Invalidate`.
 - `--bundle-id <id>`
 - `--upload-key settings|none`
 - `--progress "<regex>"`
+- `--tv` (android): a TV app; its manifest must declare `android.software.leanback`.
 - `--watch <scheme>` (ios): the app carries an Apple Watch app. That scheme's XCTests run on the newest watchOS simulator before the archive, and the archive must hold the watch app (`Payload/*.app/Watch/*.app`, bundle ID `--watch-bundle-id`, default `<bundle id>.watchkitapp`) and every extension in it, at the app's version and build. The watch isn't a target of its own: it ships inside the iPhone app's archive and upload.
 - `--tests "<scheme ...>"` (ios, tvos): more XCTest schemes before the archive, on the newest iPhone or Apple TV simulator.
 - `--extensions "<Name.appex ...>"` (ios, tvos): extensions the archive must hold in the app's `PlugIns/`, at its version and build, with bundle IDs under the app's.
@@ -197,7 +206,7 @@ Paths are taken relative to the app's root, and `~` is expanded. Drivers declare
 | `APP_STORE_CONNECT_API_KEY_ID` | Apple targets | same | `APP_STORE_CONNECT_API_KEY_KEY_ID` | same |
 | `APP_STORE_CONNECT_API_KEY_ISSUER_ID` | Apple targets | same | same | same |
 | `APP_STORE_CONNECT_API_KEY_PATH` | Apple targets (default `~/.appstoreconnect/private_keys/AuthKey_<ID>.p8`) | `APP_STORE_CONNECT_API_KEY_KEY_PATH` | `APP_STORE_CONNECT_API_KEY_KEY_FILEPATH` | `APP_STORE_CONNECT_API_KEY_KEY_PATH` |
-| `APPLE_TEAM_ID` | Apple targets | same | — | same |
+| `APPLE_TEAM_ID` | Apple targets (default package.json `app.appleTeamId`) | same | — | same |
 | `PLAY_JSON_KEY_PATH` | Android targets | `GOOGLE_PLAY_JSON_KEY_PATH` | `PLAY_SERVICE_ACCOUNT_JSON` | — |
 | `ANDROID_UPLOAD_KEYSTORE_PATH`, `_KEYSTORE_PASSWORD`, `_KEY_ALIAS` (default `upload`), `_KEY_PASSWORD` | Android targets with `--upload-key settings` | same | `IRIS_UPLOAD_*` in `~/.gradle/gradle.properties` (`--upload-key none`) | — |
 

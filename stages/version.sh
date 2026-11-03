@@ -196,11 +196,9 @@ version_step() {
   local -a flags=()
   ((BREAKING)) && flags=(--breaking)
   if [[ "$BUMP" == custom ]]; then
-    # shellcheck disable=SC2046 # the command is a command line, split on purpose
-    $(dk_c version_cmd "node scripts/version.mjs") set "$NEXT_VERSION" "$NEXT_BUILD" ${flags[@]+"${flags[@]}"}
+    dk_version_run set "$NEXT_VERSION" "$NEXT_BUILD" ${flags[@]+"${flags[@]}"}
   else
-    # shellcheck disable=SC2046
-    $(dk_c version_cmd "node scripts/version.mjs") "$BUMP" ${flags[@]+"${flags[@]}"}
+    dk_version_run "$BUMP" ${flags[@]+"${flags[@]}"}
   fi
   version_read
   [[ "$VERSION" == "$NEXT_VERSION" && "$BUILD" == "$NEXT_BUILD" ]] ||
@@ -227,4 +225,24 @@ version_undo() {
   else
     warn "Couldn't take back the bump to $TAG: drop it at the next deploy's version question."
   fi
+}
+
+# dk_version_run <bump args>: the kit's version bump (bin/version.mjs, over
+# package.json and dk_config version_files), or the app's own command when
+# it names one (dk_config version_cmd).
+dk_version_run() {
+  if [[ -n "$(dk_c version_cmd)" ]]; then
+    # shellcheck disable=SC2046 # the command is a command line, split on purpose
+    $(dk_c version_cmd) "$@"
+  else
+    DK_APP_ROOT="$ROOT" node "$DK_ROOT/bin/version.mjs" "$@" --files "$(dk_c version_files package.json)"
+  fi
+}
+
+# dk_bump_command <build|patch|minor|major> | set <x.y.z> [build] [--force]
+# [--breaking]: yarn deploy bump, the version by hand (no commit; yarn deploy
+# commits the bump it makes itself).
+dk_bump_command() {
+  (($# > 0)) || die "usage: yarn deploy bump <build|patch|minor|major> | bump set <x.y.z> [build] [--force] [--breaking]"
+  dk_version_run "$@"
 }

@@ -7,6 +7,9 @@
 
 DK_DEMO=1
 
+# No Terraform: nothing is read from the state either.
+dk_outputs_enabled() { return 1; }
+
 dk_nap() { sleep "$(awk "BEGIN { print $1 / ${DEMO_SPEED:-1} }")"; }
 
 dk_demo_setup() {

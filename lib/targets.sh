@@ -37,7 +37,7 @@
 DK_GROUP_IDS=()
 DK_TARGET_IDS=()
 # Flags: options that take no value.
-DK_TARGET_FLAGS=" play reuse no_reuse early "
+DK_TARGET_FLAGS=" play reuse no_reuse early tv "
 
 # dk_group <group> <label>
 dk_group() {
@@ -195,9 +195,16 @@ dk_target_steps() {
 # dk_needs_outputs <id>: the target waits for Infra's outputs.
 dk_needs_outputs() { [[ "$(dk_t "$1" waits_for)" == outputs ]]; }
 
-# dk_outputs_ready: the app's outputs_ready hook, or true without one.
+# dk_outputs_ready: the app's outputs_ready hook; else, with dk_config
+# outputs, every mapped output has a value; else true.
 dk_outputs_ready() {
-  if dk_has_hook outputs_ready; then outputs_ready; else return 0; fi
+  if dk_has_hook outputs_ready; then
+    outputs_ready
+  elif dk_outputs_enabled; then
+    dk_outputs_ready_default
+  else
+    return 0
+  fi
 }
 
 # dk_lane_run <id>: a target's lane, in the background: build, gate, publish.

@@ -83,9 +83,12 @@ dk_reload_env() {
   local f
   if dk_has_hook reload_env_hook; then
     reload_env_hook
+    dk_outputs_export
     return 0
   fi
   for f in $(dk_c reload_env); do load_env --override "$ROOT/$f"; done
+  # Terraform's outputs, read live, win over the files.
+  dk_outputs_export
   return 0
 }
 
@@ -122,6 +125,9 @@ dk_usage() {
   done
   [[ -z "$(dk_c infra_dir)" ]] || echo "  infra [plan args]   API → Infra, asking before the apply" >&2
   echo "  settings            every setting the targets need, and where it comes from" >&2
+  echo "  bump <build|patch|minor|major> | bump set <x.y.z> [build]   the version, by hand" >&2
+  [[ -z "$(dk_c outputs)" ]] || echo "  env-sync            Terraform's outputs into the env files, for local dev" >&2
+  [[ -z "$(dk_c tf_secrets)" ]] || echo "  secrets status|store <var> <file>|run <cmd>   Terraform's secrets in the keychain" >&2
   echo "  demo                a pretend run through the deploy UI, touching nothing" >&2
 }
 
@@ -138,6 +144,12 @@ dk_parse() {
       DK_KIND=infra
       ;;
     settings | demo) DK_KIND=$cmd ;;
+    # Tools: no lock, no UI, no deploy; their arguments are their own.
+    secrets | bump | env-sync)
+      DK_KIND=tool
+      DK_TOOL_ARGS=("$@")
+      TF_ARGS=()
+      ;;
     help | -h | --help)
       dk_usage
       exit 0
@@ -248,6 +260,8 @@ dk_options() {
 dk_needs_aws() {
   local id
   ((DO_INFRA)) && return 0
+  # Terraform's outputs are read from the state.
+  dk_outputs_enabled && return 0
   for id in $(dk_targets_on); do
     [[ "$(dk_driver "$id" needs_aws)" == yes ]] && return 0
   done
@@ -487,6 +501,20 @@ dk_main() {
     exec env DEPLOY_ENV_LOADED=1 $(dk_c env_loader) bash "$DK_CALLER" "$@"
   fi
   export DEPLOY_ENV_LOADED=1
+  # dk_config env_files: env files read into the deploy's shell, values
+  # already there winning (an app without a loader script of its own; its
+  # local-dev file stays out of a release).
+  local f
+  for f in $(dk_c env_files); do
+    load_env "$ROOT/$f"
+  done
+  # The deploy's own behaviour is the app's deploy.sh (dk_config tui, notify,
+  # keep_logs); DEPLOY_TUI, DEPLOY_NOTIFY and DEPLOY_KEEP_LOGS in the shell
+  # still win, for one run. Exported for the deploy UI, which reads them.
+  [[ -n "${DEPLOY_TUI:-}" ]] || DEPLOY_TUI="$([[ "$(dk_c tui yes)" == no ]] && echo 0 || echo 1)"
+  [[ -n "${DEPLOY_NOTIFY:-}" ]] || DEPLOY_NOTIFY="$([[ "$(dk_c notify yes)" == no ]] && echo 0 || echo 1)"
+  [[ -n "${DEPLOY_KEEP_LOGS:-}" ]] || DEPLOY_KEEP_LOGS="$(dk_c keep_logs 5)"
+  export DEPLOY_TUI DEPLOY_NOTIFY DEPLOY_KEEP_LOGS
   # No pager: with a terminal on stdout the AWS CLI pipes through less, which
   # restores the screen on exit and with it the terminal's scroll region.
   export AWS_PAGER=""
@@ -506,6 +534,14 @@ dk_main() {
 
   if [[ "$DK_KIND" == settings ]]; then
     dk_settings_report
+    exit $?
+  fi
+  if [[ "$DK_KIND" == tool ]]; then
+    case "$MODE" in
+      secrets) dk_tf_secrets_command ${DK_TOOL_ARGS[@]+"${DK_TOOL_ARGS[@]}"} ;;
+      bump) dk_bump_command ${DK_TOOL_ARGS[@]+"${DK_TOOL_ARGS[@]}"} ;;
+      env-sync) dk_env_sync_command ${DK_TOOL_ARGS[@]+"${DK_TOOL_ARGS[@]}"} ;;
+    esac
     exit $?
   fi
   if [[ "$DK_KIND" == demo ]]; then
@@ -559,6 +595,7 @@ dk_run_all() {
   # shellcheck disable=SC2086 # a word list
   preflight_tools $tools
   if dk_needs_aws; then preflight_aws; else step_mark AWS s; fi
+  dk_outputs_read
   ((DO_INFRA)) && dk_hook infra_preflight_hook
   dk_checks
   version_read
@@ -619,6 +656,7 @@ dk_run_targets() {
   # shellcheck disable=SC2046 # a word list
   preflight_tools $(dk_tools)
   if dk_needs_aws; then preflight_aws; else step_mark AWS s; fi
+  dk_outputs_read
   dk_checks
   dk_note_needed && notes_default "$VERSION" "$BUILD" "$TAG"
   confirm_run "$(deploy_summary)" "$(dk_note_needed && echo 1 || echo 0)"

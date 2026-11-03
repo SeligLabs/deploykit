@@ -51,8 +51,14 @@ PLIST
         ;;
       android)
         art="$(sed -n "s|^${PWD##*/} android ||p" "$STUB_ARTIFACTS")"
-        mkdir -p "$work/base"
+        mkdir -p "$work/base/manifest"
         echo "${API_URL:-}" >"$work/base/config"
+        # The TV app's manifest declares leanback (STUB_NO_LEANBACK: it doesn't).
+        if [[ "${PWD##*/}" == tv && -z "${STUB_NO_LEANBACK:-}" ]]; then
+          echo '<uses-feature android:name="android.software.leanback"/>' >"$work/base/manifest/AndroidManifest.xml"
+        else
+          echo '<manifest/>' >"$work/base/manifest/AndroidManifest.xml"
+        fi
         for i in 1 2 3; do echo "> Task :app:step$i"; done
         ;;
     esac

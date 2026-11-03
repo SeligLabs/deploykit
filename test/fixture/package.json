@@ -4,5 +4,10 @@
   "version": "1.0.0",
   "build": 10,
   "minBuild": 1,
-  "app": { "slug": "fixture", "displayName": "Fixture", "bundleId": "com.example.fixture" }
+  "app": {
+    "slug": "fixture",
+    "displayName": "Fixture",
+    "bundleId": "com.example.fixture",
+    "appleTeamId": "TEAMFIXTURE"
+  }
 }

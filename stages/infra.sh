@@ -195,6 +195,7 @@ dk_plan_json() {
 # app's infra_init_hook. Runs inside the plan's thread.
 infra_init() {
   cd "$INFRA"
+  dk_tf_secrets_load
   dk_hook infra_secrets_hook
   local -a args=()
   # dk_config tf_init_args, expanded here (in the plan's thread, after the
@@ -299,7 +300,13 @@ infra_apply_thread() {
     INFRA_RESULT="$(sed -n 2p "$WORK/tfplan-summary")"
   fi
   step Sync "Sync outputs"
-  if dk_has_hook after_apply_hook; then after_apply_hook; else echo "Nothing to sync (after_apply_hook)."; fi
+  if dk_has_hook after_apply_hook; then
+    after_apply_hook
+  elif ! dk_outputs_enabled; then
+    echo "Nothing to sync (after_apply_hook)."
+  fi
+  # The outputs the apply may just have made or changed.
+  dk_outputs_read
 }
 
 # infra_stage: yarn deploy infra's, in the foreground: Init, Plan, the

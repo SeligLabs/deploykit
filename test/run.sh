@@ -39,6 +39,8 @@ fresh() {
   printf '%s\n' "mobile ios apps/mobile/build/deploy/fixture.ipa" "mobile android apps/mobile/android/app-release.aab" \
     "tv tvos apps/tv/build/deploy/fixture-tv.ipa" "tv android apps/tv/android/app-release.aab" >"$SCRATCH/artifacts"
   : >"$SCRATCH/stub.log"
+  # The stub Terraform's state: no outputs until an apply.
+  rm -f "$SCRATCH/tf-applied"
 }
 
 # deploy <input> <command...>: the app's deploy, its output in OUT, status RC.
@@ -89,6 +91,10 @@ case_full() {
   expect_out "app: published to https://app.example.com."
   expect_out "macOS: DMG 1.0.0 (11)."
   expect_out "Fire TV: upload the APK by hand."
+  # Terraform's outputs, read live after the apply (a map output, one
+  # variable per key).
+  expect_out "(tables users-t tags-t)"
+  expect_log "terraform output -json"
   [[ "$(uploads)" == 4 ]] || fail "$(uploads) store uploads, want 4"
   expect_log "s3 sync .*s3://www-fixture --delete .*--exclude \.well-known/\*"
   expect_log "s3 sync .*_next/static s3://web-fixture/_next/static"
@@ -109,6 +115,13 @@ case_full() {
   lint_start=$(line_of 'LINT start' "$SCRATCH/stub.log") lint_end=$(line_of 'LINT end' "$SCRATCH/stub.log")
   ((taken > 0 && lint_start > 0)) || fail "no export or no Lint in the stub log"
   ((released < lint_start || lint_end < taken)) || fail "the export ran while Lint held the web lock"
+  # The kit's bump: package.json and each native file, in the bump commit
+  # (a pbxproj's other version left alone).
+  git -C "$APP" show --stat HEAD~0 >/dev/null
+  grep -q '<string>1.0.0</string>' "$APP/native/Info.plist" && grep -q '<string>11</string>' "$APP/native/Info.plist" || fail "Info.plist wasn't bumped to 11"
+  grep -q 'CURRENT_PROJECT_VERSION = 11;' "$APP/native/project.pbxproj" && grep -q 'MARKETING_VERSION = 9.9.9;' "$APP/native/project.pbxproj" || fail "project.pbxproj wasn't bumped (or its other version was)"
+  grep -q 'versionCode 11' "$APP/native/build.gradle" || fail "build.gradle wasn't bumped"
+  git -C "$APP" log -1 --name-only --format= origin/main | grep -q 'native/build.gradle' || fail "the bump commit lacks the native files"
   # No log holds the environment (a bare export in Prepare printed it all).
   ! grep -rlq 'declare -x' "$APP/apps" "$SCRATCH/cache" 2>/dev/null || fail "a log holds the environment: $(grep -rl 'declare -x' "$APP/apps" "$SCRATCH/cache" | head -n 1)"
   no_leftovers
@@ -198,7 +211,7 @@ case_group_command() {
   expect_out "Android: the Play internal track 1.0.0 (10)."
   [[ "$(uploads)" == 2 ]] || fail "$(uploads) uploads, want 2"
   [[ "$(build_now)" == 10 ]] || fail "a group command changed the version"
-  expect_no_log "terraform"
+  expect_no_log "terraform (plan|apply)"
   : >"$SCRATCH/stub.log"
   deploy "1\n" tv:tvos
   expect_rc 0
@@ -256,6 +269,8 @@ case_settings() {
   expect_rc 0
   expect_out "APPLE_TEAM_ID"
   grep -E 'APPLE_TEAM_ID +FROMENV +env' <<<"$OUT" >/dev/null || fail "APPLE_TEAM_ID isn't from env"
+  deploy "" settings
+  grep -E 'APPLE_TEAM_ID +TEAMFIXTURE +default' <<<"$OUT" >/dev/null || fail "APPLE_TEAM_ID isn't package.json's app.appleTeamId"
   grep -E 'ANDROID_UPLOAD_KEYSTORE_PASSWORD +•' <<<"$OUT" >/dev/null || fail "a password isn't masked"
   grep -E 'ANDROID_UPLOAD_KEY_ALIAS +upload +default' <<<"$OUT" >/dev/null || fail "the alias default"
   sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/release.env"
@@ -356,6 +371,71 @@ case_sso_margin() {
   expect_rc 0
 }
 
+# --tv: an Android TV bundle without leanback stops before the upload.
+case_tv_leanback() {
+  fresh leanback
+  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
+  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+  STUB_NO_LEANBACK=1 deploy "1\n" tv:androidtv
+  expect_rc 1
+  grep -qF "doesn't declare android.software.leanback" "$APP/apps/tv/build/deploy-androidtv.log" || fail "no leanback message in the lane's log"
+  [[ "$(uploads)" == 0 ]] || fail "uploaded a TV bundle without leanback"
+}
+
+# yarn deploy bump: the version by hand, the native files too, no commit.
+case_bump() {
+  fresh bump
+  deploy "" bump set 2.0.0 20 --breaking
+  expect_rc 0
+  [[ "$(node -p "const p=require('$APP/package.json'); p.version+' '+p.build+' '+p.minBuild")" == "2.0.0 20 20" ]] || fail "package.json isn't 2.0.0 (20), minBuild 20"
+  grep -q 'versionName "2.0.0"' "$APP/native/build.gradle" || fail "build.gradle isn't 2.0.0"
+  grep -q 'MARKETING_VERSION = 2.0.0;' "$APP/native/project.pbxproj" || fail "project.pbxproj isn't 2.0.0"
+  [[ "$(git -C "$APP" rev-list --count HEAD)" == 1 ]] || fail "bump committed"
+  deploy "" bump set 3.0.0 5
+  expect_rc 1
+  expect_out "Build must be above 20"
+}
+
+# deploykit publish-site (an app's CI): the site driver's sync, no deploy.
+case_publish_site() {
+  fresh publish
+  : >"$SCRATCH/stub.log"
+  OUT="$(cd "$APP" && PATH="$KIT/test/stubs:$PATH" STUB_LOG="$SCRATCH/stub.log" bash "$KIT/bin/deploykit" publish-site \
+    --build "mkdir -p apps/www/out/_next/static && echo www >apps/www/out/index.html" --out apps/www/out \
+    --bucket www-ci --distribution ECI --keep ".well-known/*" 2>&1)"
+  RC=$?
+  expect_rc 0
+  expect_out "Published to s3://www-ci"
+  expect_log "s3 sync .*_next/static s3://www-ci/_next/static --cache-control public,max-age=31536000,immutable"
+  expect_log "s3 sync .*apps/www/out s3://www-ci --delete --exclude _next/static/\* --exclude \.well-known/\*"
+  expect_log "cloudfront create-invalidation --distribution-id ECI"
+}
+
+# A stale value in an env file loses to the state's: the build embeds the live one.
+case_outputs_live() {
+  fresh outputs-live
+  echo "API_URL=https://stale.example.invalid" >>"$APP/env/.env"
+  git -C "$APP" commit -qam stale && git -C "$APP" push -q origin main
+  STUB_OUTPUTS=1 deploy "1\n" mobile:ios
+  expect_rc 0
+  unzip -p "$APP/apps/mobile/build/deploy/fixture.ipa" Payload/App.app/config | grep -qx 'https://api.example.invalid' ||
+    fail "the build embeds $(unzip -p "$APP/apps/mobile/build/deploy/fixture.ipa" Payload/App.app/config), not the state's API_URL"
+}
+
+# yarn deploy env-sync: the live outputs into env/.env, in place.
+case_env_sync() {
+  fresh env-sync
+  STUB_OUTPUTS=1 deploy "" env-sync
+  expect_rc 0
+  expect_out "✓ env/.env ← terraform outputs (3 values"
+  grep -qx 'API_URL=https://api.example.invalid' "$APP/env/.env" || fail "env/.env has no API_URL"
+  grep -qx 'ITEM_TAGS_TABLE=tags-t' "$APP/env/.env" || fail "env/.env has no ITEM_TAGS_TABLE"
+  grep -qx 'WEB_BUCKET=web-fixture' "$APP/env/.env" || fail "env-sync lost a line it doesn't own"
+  deploy "" env-sync
+  expect_rc 1
+  expect_out "Terraform has no outputs yet"
+}
+
 case_usage() {
   fresh usage
   deploy "" nosuch
@@ -365,7 +445,7 @@ case_usage() {
 
 SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
   sites_only first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
-  no_simulators sso_margin settings demo usage)
+  no_simulators tv_leanback bump publish_site outputs_live env_sync sso_margin settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
 for s in "${SCENARIOS[@]}"; do
   CASE_OK=1

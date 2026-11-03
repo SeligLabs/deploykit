@@ -52,33 +52,17 @@ dk_site_make() {
 }
 
 dk_site_publish() {
-  local id=$1 out bucket distribution url immutable keep pattern
-  local -a exclude=()
+  local id=$1 bucket distribution url
   [[ "$(dk_t "$id" early)" == 1 ]] || dk_site_make "$id"
-  out="$ROOT/$(dk_t "$id" out)"
   bucket="$(dk_t "$id" bucket)"
   distribution="$(dk_t "$id" distribution)"
   url="$(dk_t "$id" url)"
   [[ -n "$bucket" && -n "${!bucket:-}" ]] ||
     die "${bucket:---bucket} is empty: deploy the infrastructure first (its outputs name the bucket)."
-  immutable="$(dk_t "$id" immutable _next/static)"
-  step Upload "Upload to s3://${!bucket}"
-  spinner_label "uploading"
-  if [[ -d "$out/$immutable" ]]; then
-    aws s3 sync "$out/$immutable" "s3://${!bucket}/$immutable" \
-      --cache-control "public,max-age=31536000,immutable"
-    exclude+=(--exclude "$immutable/*")
-  fi
-  keep="$(dk_t "$id" keep)"
-  for pattern in $keep; do exclude+=(--exclude "$pattern"); done
-  aws s3 sync "$out" "s3://${!bucket}" --delete ${exclude[@]+"${exclude[@]}"} \
-    --cache-control "public,max-age=0,must-revalidate"
-  step Invalidate "Clear the CloudFront cache"
-  if [[ -n "$distribution" && -n "${!distribution:-}" ]]; then
-    aws cloudfront create-invalidation --distribution-id "${!distribution}" --paths "/*" >/dev/null
-  else
-    echo "No ${distribution:---distribution}: nothing to clear."
-  fi
+  [[ -z "$distribution" || -n "${!distribution:-}" ]] || echo "No ${distribution}: nothing to clear."
+  # shellcheck disable=SC2046 # --keep is a list of patterns
+  dk_site_sync "$ROOT/$(dk_t "$id" out)" "${!bucket}" "${distribution:+${!distribution:-}}" \
+    "$(dk_t "$id" immutable _next/static)" $(dk_t "$id" keep)
   if [[ -n "$url" && -n "${!url:-}" ]]; then
     dk_result "$id" "published to ${!url}"
   else

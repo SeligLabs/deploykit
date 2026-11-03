@@ -39,6 +39,8 @@
 #   --bundle-id <id>         default the app's bundle ID
 #   --upload-key settings|none  Android: verify the bundle is signed with the
 #                            ANDROID_UPLOAD_* key (default settings)
+#   --tv                     android: a TV app; its manifest must declare
+#                            android.software.leanback
 #   --progress "<regex>"     a build line to count (▸ for Xcode, > Task : for
 #                            Gradle by default)
 #   --watch <scheme>         ios: the app carries an Apple Watch app. Before
@@ -118,7 +120,10 @@ dk_fastlane_settings() {
     dk_setting_declare APP_STORE_CONNECT_API_KEY_ISSUER_ID "The App Store Connect API key's issuer ID."
     dk_setting_declare APP_STORE_CONNECT_API_KEY_PATH "The key's .p8 file." \
       "$HOME/.appstoreconnect/private_keys/AuthKey_$(dk_setting APP_STORE_CONNECT_API_KEY_ID).p8"
-    dk_setting_declare APPLE_TEAM_ID "The Apple Developer team that signs the app (developer.apple.com → Membership)."
+    # The team is a fact of the app, not of the machine: package.json
+    # app.appleTeamId, which a setting still overrides.
+    dk_setting_declare APPLE_TEAM_ID "The Apple Developer team that signs the app (developer.apple.com → Membership): package.json app.appleTeamId." \
+      "$(app_field appleTeamId)"
   else
     dk_setting_declare PLAY_JSON_KEY_PATH "A Google Cloud service account's JSON key with release access in Play Console."
     if [[ "$(dk_t "$1" upload_key settings)" == settings ]]; then
@@ -459,6 +464,11 @@ dk_fastlane_verify() {
       fi
       unzip -oq "$a" -d "$dir"
       dk_verify_embeds "$id" "$dir"
+      # --tv: a TV app declares leanback, or Play offers it to phones.
+      if [[ "$(dk_t "$id" tv)" == 1 ]]; then
+        command grep -qaF android.software.leanback "$dir/base/manifest/AndroidManifest.xml" 2>/dev/null ||
+          die "The TV bundle's manifest doesn't declare android.software.leanback: was it built as the TV app (EXPO_TV=1)?"
+      fi
       dk_hook "${id}_verify" "$dir"
       ;;
     mac) dk_hook "${id}_verify" "$a" ;;

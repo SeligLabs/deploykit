@@ -29,6 +29,12 @@ source "$DK_ROOT/lib/env.sh"
 source "$DK_ROOT/lib/tracker.sh"
 # shellcheck source=lib/prompt.sh
 source "$DK_ROOT/lib/prompt.sh"
+# shellcheck source=lib/secrets.sh
+source "$DK_ROOT/lib/secrets.sh"
+# shellcheck source=lib/site.sh
+source "$DK_ROOT/lib/site.sh"
+# shellcheck source=lib/outputs.sh
+source "$DK_ROOT/lib/outputs.sh"
 # shellcheck source=lib/settings.sh
 source "$DK_ROOT/lib/settings.sh"
 # shellcheck source=lib/targets.sh

@@ -8,6 +8,14 @@ case "$1" in
   plan) for a in "$@"; do [[ $a == -out=* ]] && echo plan >"${a#-out=}"; done
         echo 'aws_lambda_function.a: Refreshing state...'; exit "${STUB_PLAN_STATUS:-2}" ;;
   show) echo '{"resource_changes":[{"mode":"managed","address":"aws_lambda_function.a","type":"aws_lambda_function","change":{"actions":["update"]}}]}' ;;
-  apply) echo 'aws_lambda_function.a: Modifications complete after 1s' ;;
+  apply) echo 'aws_lambda_function.a: Modifications complete after 1s'
+         touch "$(dirname "$STUB_LOG")/tf-applied" ;;
+  # The state's outputs: none until an apply (STUB_OUTPUTS=1: some already).
+  output)
+    if [[ -f "$(dirname "$STUB_LOG")/tf-applied" || -n "${STUB_OUTPUTS:-}" ]]; then
+      echo '{"api_url":{"value":"https://api.example.invalid"},"table_names":{"value":{"users":"users-t","item-tags":"tags-t"}}}'
+    else
+      echo '{}'
+    fi ;;
 esac
 exit 0
