@@ -14,6 +14,10 @@ SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/deploykit-test.XXXXXX")"
 trap '[[ -n "${KEEP:-}" ]] || rm -rf "$SCRATCH"' EXIT
 PASSED=0
 FAILED=()
+# A run that hangs fails after 4 minutes where timeout exists (coreutils; a
+# Mac without it runs unbounded).
+TIMEOUT=""
+if command -v timeout >/dev/null 2>&1; then TIMEOUT="timeout 240"; elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT="gtimeout 240"; fi
 # An identity for every commit the scenarios make (the fixture's, the
 # deploy's bump), so a CI runner with none can run them.
 export GIT_AUTHOR_NAME=deploykit-test GIT_AUTHOR_EMAIL=test@example.invalid
@@ -44,7 +48,7 @@ deploy() {
   printf '%b' "$input" >"$SCRATCH/input"
   (cd "$APP" && env -u AWS_PROFILE -u DEPLOY_UI -u DEPLOY_WORK -u DEPLOY_ENV_LOADED \
     PATH="$KIT/test/stubs:$PATH" DEPLOYKIT_DEV="$KIT" STUB_LOG="$SCRATCH/stub.log" STUB_ARTIFACTS="$SCRATCH/artifacts" \
-    XDG_CACHE_HOME="$SCRATCH/cache" TMPDIR="$SCRATCH" DEPLOY_TUI=0 timeout 240 bash scripts/deploy/deploy.sh "$@") \
+    XDG_CACHE_HOME="$SCRATCH/cache" TMPDIR="$SCRATCH" DEPLOY_TUI=0 $TIMEOUT bash scripts/deploy/deploy.sh "$@") \
     <"$SCRATCH/input" >"$SCRATCH/out.raw" 2>&1
   RC=$?
   OUT="$(sed 's/\x1b\[[0-9;?]*[A-Za-z]//g' "$SCRATCH/out.raw")"
