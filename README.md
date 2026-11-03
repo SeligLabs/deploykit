@@ -26,4 +26,4 @@ Start with [CONTRACT.md](CONTRACT.md).
 - `DEPLOYKIT_DEV=../deploykit yarn deploy demo` points an app at this checkout.
 - `bash test/run.sh` runs the scenarios against `test/fixture` with stub tools.
 - `cd tui && go test ./...` runs the UI's tests.
-- To release: update CHANGELOG.md, bump `version` in package.json, tag `v<version>`, then bump each app's dependency.
+- To release: write what changed under `## Unreleased` in CHANGELOG.md, then `bash scripts/release.sh [patch|minor|major|<x.y.z>]` (no argument: package.json's version, when it isn't tagged yet). It checks git, runs every check and the scenarios, commits `Release v<version>`, asks once, then tags, pushes and creates the GitHub release. `--dry-run` does the checks and changes nothing. Then bump each app's dependency to the new tag.

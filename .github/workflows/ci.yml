@@ -26,6 +26,6 @@ jobs:
           go test ./...
       - name: shellcheck
         if: runner.os == 'Linux'
-        run: shellcheck -x -S warning deploykit.sh lib/*.sh stages/*.sh drivers/*.sh bin/*.sh bin/deploykit test/run.sh test/stubs/*
+        run: shellcheck -x -S warning deploykit.sh lib/*.sh stages/*.sh drivers/*.sh bin/*.sh bin/deploykit scripts/*.sh test/run.sh test/stubs/*
       - name: Scenarios
         run: bash test/run.sh
