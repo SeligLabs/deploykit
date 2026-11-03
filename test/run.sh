@@ -98,6 +98,8 @@ case_full() {
   (($(line_of 'terraform apply' "$SCRATCH/stub.log") < $(line_of '^UPLOAD' "$SCRATCH/stub.log"))) || fail "an upload came before the apply"
   expect_log "terraform plan .*\(TF_VAR_push_key=secret-value\)"
   git -C "$SCRATCH/origin-full.git" rev-parse -q --verify refs/tags/v1.0.0+11 >/dev/null || fail "no tag v1.0.0+11 on origin"
+  # No log holds the environment (a bare export in Prepare printed it all).
+  ! grep -rlq 'declare -x' "$APP/apps" "$SCRATCH/cache" 2>/dev/null || fail "a log holds the environment: $(grep -rl 'declare -x' "$APP/apps" "$SCRATCH/cache" | head -n 1)"
   no_leftovers
 }
 

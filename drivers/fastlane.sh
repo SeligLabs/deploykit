@@ -365,7 +365,7 @@ dk_fastlane_skip_build_steps() {
 }
 
 dk_fastlane_build() {
-  local id=$1 prepare lock store code a
+  local id=$1 prepare lock store code a kv
   store="$(dk_fastlane_store "$id")"
   code="$(dk_fastlane_code "$id")"
   step Check "$store: is $VERSION ($code) new?"
@@ -387,8 +387,12 @@ dk_fastlane_build() {
   if [[ -n "$prepare" ]]; then
     step Prepare "$prepare"
     spinner_label "preparing the native project"
-    # shellcheck disable=SC2046 # --env is a list of VAR=value words
-    (export $(dk_t "$id" env) && eval "$prepare") || die "Prepare failed: $prepare"
+    # Not `export $(...)`: with no --env, a bare export prints every
+    # variable, secrets included, into the lane's log.
+    (
+      for kv in $(dk_t "$id" env); do export "${kv?}"; done
+      eval "$prepare"
+    ) || die "Prepare failed: $prepare"
   else
     step_mark Prepare s
   fi
