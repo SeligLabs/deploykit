@@ -527,7 +527,7 @@ dk_main() {
     AWS_REGION="$(dk_c aws_region)"
     export AWS_REGION
   fi
-  DK_SETTINGS_FILES="$(dk_c settings_files env/release.env)"
+  DK_SETTINGS_FILES="$(dk_c settings_files env/.env)"
   dk_identity
   dk_parse "$@"
   dk_declare_settings

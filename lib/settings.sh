@@ -8,7 +8,7 @@
 #   3. the app's settings_source_hook <NAME>, when it defines one (the
 #      keychain, 1Password, anything that can print a value)
 #   4. the settings files, in order (dk_config settings_files; default
-#      env/release.env), KEY=value lines as the env files have
+#      env/.env), KEY=value lines as the env files have
 #   5. a declared default (dk_setting_declare)
 # and nothing when none has it; dk_setting_source says which one answered.
 #
@@ -69,7 +69,7 @@ dk_setting_lookup() {
   fi
   # The files: the name in any of them first, so a setting renamed in one
   # file beats its old name left in another.
-  for file in ${DK_SETTINGS_FILES:-env/release.env}; do
+  for file in ${DK_SETTINGS_FILES:-env/.env}; do
     [[ "$file" == /* ]] || file="$ROOT/$file"
     value="$(dk_setting_file_value "$file" "$name")"
     if [[ -n "$value" ]]; then
@@ -78,7 +78,7 @@ dk_setting_lookup() {
     fi
   done
   for old in ${!var:-}; do
-    for file in ${DK_SETTINGS_FILES:-env/release.env}; do
+    for file in ${DK_SETTINGS_FILES:-env/.env}; do
       [[ "$file" == /* ]] || file="$ROOT/$file"
       value="$(dk_setting_file_value "$file" "$old")"
       if [[ -n "$value" ]]; then
@@ -132,7 +132,7 @@ dk_setting_require() {
     dk_setting_lookup "$name"
     [[ -n "$DK_SETTING_VALUE" ]] && continue
     hint="DKS_${name}_hint"
-    die "Setting $name is empty (${DK_SETTINGS_FILES:-env/release.env}, the environment, or settings_source_hook).${!hint:+ ${!hint}}"
+    die "Setting $name is empty (${DK_SETTINGS_FILES:-env/.env}, the environment, or settings_source_hook).${!hint:+ ${!hint}}"
   done
 }
 
@@ -152,7 +152,7 @@ dk_settings_export() {
 # (masked), or what's missing. `yarn deploy settings`.
 dk_settings_report() {
   local name shown missing=0 hint
-  printf '\e[1mSettings\e[0m (files: %s)\n' "${DK_SETTINGS_FILES:-env/release.env}"
+  printf '\e[1mSettings\e[0m (files: %s)\n' "${DK_SETTINGS_FILES:-env/.env}"
   for name in ${DK_SETTING_NAMES[@]+"${DK_SETTING_NAMES[@]}"}; do
     dk_setting_lookup "$name"
     if [[ -z "$DK_SETTING_VALUE" ]]; then

@@ -19,7 +19,7 @@ Start with [CONTRACT.md](CONTRACT.md).
    ```
 
 3. `scripts/deploy/deploy.sh` (CONTRACT.md, "An app's deploy") and `scripts/checks.list` (CONTRACT.md, "Checks").
-4. On each machine, `env/release.env` (from `env/release.env.example`). `yarn deploy settings` shows what's missing.
+4. On each machine, the release settings in the app's git-ignored base env file (`env/.env`; the names are in `env/.env.example` and CONTRACT.md, Settings). `yarn deploy settings` shows what's missing.
 
 ## Working on the kit
 

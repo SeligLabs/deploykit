@@ -73,7 +73,7 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `tf_parallelism` | 30 | Terraform's `-parallelism` |
 | `tf_init_args` | none | extra `terraform init` arguments, e.g. a partial S3 backend's `-reconfigure -backend-config=key=$STAGE.tfstate`; single-quoted, expanded in the plan's thread after `infra_secrets_hook` |
 | `tf_plan_args` | none | extra `terraform plan` arguments, e.g. `-var-file=environments/$STAGE.tfvars -var=stage=$STAGE`, expanded the same way; the saved plan carries them to the apply |
-| `settings_files` | `env/release.env` | where settings are read from (see Settings) |
+| `settings_files` | `env/.env` | where settings are read from, by name (see Settings): the app's git-ignored base env file, which holds the release settings with the rest |
 | `tui`, `notify`, `keep_logs` | `yes`, `yes`, `5` | the deploy UI, the notification at the end, how many runs' logs to keep; `DEPLOY_TUI=0`, `DEPLOY_NOTIFY=0` and `DEPLOY_KEEP_LOGS` in the shell override them for one run |
 | `outputs` | none | Terraform outputs read live from the state, as `NAME=output` words (`NAME_*=map_output`: one variable per key); exported in Preflight and after the apply, over the env files. With it, `--waits-for outputs` waits until every mapped output has a value (unless the app defines `outputs_ready`) |
 | `outputs_files` | `env/${APP_ENV:-prod}.env` | where `yarn deploy env-sync` writes them: `file` (all), `file!A!B` (all but), `file:A,B` (only); an `env_sync_hook <json>` replaces it |

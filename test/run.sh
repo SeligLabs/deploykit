@@ -271,7 +271,7 @@ case_settings() {
   grep -E 'APPLE_TEAM_ID +FROMENV +env' <<<"$OUT" >/dev/null || fail "APPLE_TEAM_ID isn't from env"
   grep -E 'ANDROID_UPLOAD_KEYSTORE_PASSWORD +•' <<<"$OUT" >/dev/null || fail "a password isn't masked"
   grep -E 'ANDROID_UPLOAD_KEY_ALIAS +upload +default' <<<"$OUT" >/dev/null || fail "the alias default"
-  sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/release.env"
+  sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/local.env"
   deploy "" settings
   expect_rc 1
   expect_out "1 missing."
@@ -280,12 +280,12 @@ case_settings() {
   expect_out "alias PLAY_SERVICE_ACCOUNT_JSON"
   # A file with both: the new name wins over the old one, and the warning
   # about an old name comes once a run.
-  mv "$APP/env/release.env.bak" "$APP/env/release.env"
-  echo "PLAY_SERVICE_ACCOUNT_JSON=env/old.json" >>"$APP/env/release.env"
+  mv "$APP/env/local.env.bak" "$APP/env/local.env"
+  echo "PLAY_SERVICE_ACCOUNT_JSON=env/old.json" >>"$APP/env/local.env"
   deploy "" settings
   expect_rc 0
-  grep -E 'PLAY_JSON_KEY_PATH +env/play.json +env/release.env' <<<"$OUT" >/dev/null || fail "the old name beat the new one in the file"
-  sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/release.env"
+  grep -E 'PLAY_JSON_KEY_PATH +env/play.json +env/local.env' <<<"$OUT" >/dev/null || fail "the old name beat the new one in the file"
+  sed -i.bak '/^PLAY_JSON_KEY_PATH=/d' "$APP/env/local.env"
   deploy "" settings
   [[ "$(grep -c 'is the old name of PLAY_JSON_KEY_PATH' <<<"$OUT")" == 1 ]] || fail "the old-name warning came $(grep -c 'is the old name' <<<"$OUT") times"
 }

@@ -3,7 +3,7 @@
 DK="${DEPLOYKIT_DEV:?the tests point DEPLOYKIT_DEV at the kit}"
 source "$DK/deploykit.sh"
 
-dk_config api 1 env_loader "bash scripts/with-env.sh" min_build yes \
+dk_config api 1 env_loader "bash scripts/with-env.sh" min_build yes settings_files env/local.env \
   version_files "package.json native/Info.plist native/project.pbxproj native/build.gradle" \
   infra_dir infrastructure state_bucket "terraform-state-{slug}" reload_env "env/.env"
 # A partial S3 backend and per-stage variables, expanded in the plan's thread.

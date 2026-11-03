@@ -11,7 +11,8 @@ The deploy reads Terraform's outputs live, and the scripts every app kept a copy
 - **`yarn deploy bump`** and the kit's version bump (`bin/version.mjs`), writing package.json and a committed native project's plist, pbxproj and build.gradle (`version_files`); `version_cmd` is now optional. Byte for byte what iris's `version.js` wrote.
 - **`yarn deploy secrets`** and `dk_config tf_secrets`: Terraform's keychain secrets, loaded by the kit inside the plan's thread; replaces each app's `infrastructure/scripts/tf-secrets.sh`.
 - **`deploykit publish-site`:** the site driver's S3 + CloudFront sync for an app's CI (one implementation, `lib/site.sh`); replaces each app's `apps/web/scripts/deploy.sh`.
-- **`deploykit android-keystore`:** the one-time upload key, printing the `ANDROID_UPLOAD_*` lines for `env/release.env`.
+- **`deploykit android-keystore`:** the one-time upload key, printing the `ANDROID_UPLOAD_*` lines for the app's base env file.
+- **Settings live in the base env file:** `settings_files` defaults to `env/.env` (was `env/release.env`); the release settings sit with the rest of the machine's settings. An app reading `env/release.env` lists it in `settings_files`.
 - **The deploy's own settings in deploy.sh:** `dk_config tui`, `notify`, `keep_logs` (the env still overrides for one run); `env_files` loads env files without a loader script.
 - **`--tv`:** an Android TV bundle must declare leanback.
 

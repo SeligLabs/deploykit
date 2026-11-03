@@ -5,7 +5,7 @@
 #   <dir> defaults to ~/.<slug>/android, the slug being package.json's
 #   app.slug. It writes <dir>/<slug>-upload.jks (an RSA 2048 key valid for 50
 #   years, alias "upload"), prints the ANDROID_UPLOAD_* lines for
-#   env/release.env and the SHA-256 fingerprint, and never touches the repo.
+#   the app's base env file and the SHA-256 fingerprint, and never touches the repo.
 #   Keep a copy of the keystore and its password somewhere safe: with Play
 #   App Signing this is only the upload key, so Google can reset it, but the
 #   reset takes days.
@@ -58,7 +58,7 @@ cat <<OUT
 
 Created $KEYSTORE (alias $ALIAS).
 
-1. Set these in env/release.env (git-ignored, never a committed file):
+1. Set these in the app's base env file (git-ignored: env/.env, or env/local.env), never a committed one:
 
    ANDROID_UPLOAD_KEYSTORE_PATH=$KEYSTORE
    ANDROID_UPLOAD_KEYSTORE_PASSWORD=<the password>
