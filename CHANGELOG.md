@@ -2,7 +2,7 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
-## 0.0.1 (unreleased)
+## 0.0.1 (2026-11-03)
 
 The first kit, from freebox's deploy of 2026-11-03 (itself merged with iris's of the same day):
 
