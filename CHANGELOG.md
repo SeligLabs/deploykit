@@ -6,7 +6,7 @@ Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` go
 
 The deploy reads Terraform's outputs live, and the scripts every app kept a copy of are the kit's.
 
-- **Live outputs:** `dk_config outputs "API_URL=api_url ... NAME_*=map"`, read from the state in Preflight and after the apply (a data directory of its own, so no race with the plan or Lint), exported over the env files. `--waits-for outputs` waits on them by default. An app's `outputs_ready`, `reload_env_hook` and env-sync-after-apply can go.
+- **Live outputs:** `dk_config outputs "API_URL=api_url ... NAME_*=map"`, read from the state in Preflight and after the apply (a data directory of its own, so no race with the plan or Lint), exported over the env files. `--waits-for outputs` waits on them by default, reading the state, not the shell; `NAME?=output` marks one optional (never waited on). An app's `outputs_ready`, `reload_env_hook` and env-sync-after-apply can go.
 - **`yarn deploy env-sync`:** the same outputs into the env files for local dev (`outputs_files`), in place; replaces each app's `scripts/env-sync.mjs`.
 - **`yarn deploy bump`** and the kit's version bump (`bin/version.mjs`), writing package.json and a committed native project's plist, pbxproj and build.gradle (`version_files`); `version_cmd` is now optional. Byte for byte what iris's `version.js` wrote.
 - **`yarn deploy secrets`** and `dk_config tf_secrets`: Terraform's keychain secrets, loaded by the kit inside the plan's thread; replaces each app's `infrastructure/scripts/tf-secrets.sh`.

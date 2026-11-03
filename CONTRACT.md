@@ -56,7 +56,7 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `env_loader` | none | a command line the deploy re-runs itself under to load the app's env files, e.g. `env APP_ENV=prod bash scripts/with-env.sh` |
 | `reload_env` | none | env files read again, over the shell, after the apply has synced outputs into them (or define `reload_env_hook`) |
 | `slug`, `name`, `bundle_id` | package.json `app.slug`, `app.displayName`, `app.bundleId` | the app's names |
-| `aws_profile` | none | AWS_PROFILE when the environment has none |
+| `aws_profile` | none | AWS_PROFILE when the environment has none, outside CI (`CI` set: the environment's credentials) |
 | `aws_region` | none | AWS_REGION (the stack's region) when the environment has none |
 | `version_cmd` | the kit's (`bin/version.mjs`) | an app's own bump command instead, taking `<build\|patch\|minor\|major> [--breaking]` or `set <version> <build> [--breaking]` |
 | `version_files` | `package.json` | what the bump writes and commits: besides package.json, a committed native project's `*.plist` (CFBundleShortVersionString, CFBundleVersion), `*.pbxproj` (MARKETING_VERSION, CURRENT_PROJECT_VERSION where they equal the current ones) and `build.gradle` (versionName, versionCode) |
@@ -75,7 +75,7 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `tf_plan_args` | none | extra `terraform plan` arguments, e.g. `-var-file=environments/$STAGE.tfvars -var=stage=$STAGE`, expanded the same way; the saved plan carries them to the apply |
 | `settings_files` | `env/.env` | where settings are read from, by name (see Settings): the app's git-ignored base env file, which holds the release settings with the rest |
 | `tui`, `notify`, `keep_logs` | `yes`, `yes`, `5` | the deploy UI, the notification at the end, how many runs' logs to keep; `DEPLOY_TUI=0`, `DEPLOY_NOTIFY=0` and `DEPLOY_KEEP_LOGS` in the shell override them for one run |
-| `outputs` | none | Terraform outputs read live from the state, as `NAME=output` words (`NAME_*=map_output`: one variable per key); exported in Preflight and after the apply, over the env files. With it, `--waits-for outputs` waits until every mapped output has a value (unless the app defines `outputs_ready`) |
+| `outputs` | none | Terraform outputs read live from the state, as `NAME=output` words (`NAME_*=map_output`: one variable per key; `NAME?=output`: optional, never waited on); exported in Preflight and after the apply, over the env files. With it, `--waits-for outputs` waits until every mapped output has a value (unless the app defines `outputs_ready`) |
 | `outputs_files` | `env/${APP_ENV:-prod}.env` | where `yarn deploy env-sync` writes them: `file` (all), `file!A!B` (all but), `file:A,B` (only); an `env_sync_hook <json>` replaces it, and may call `dk_outputs_values <json>` (the mapped `NAME=value` lines) and pipe them to `node "$DK_ROOT/bin/env-write.mjs" <file> "<only>" "<except>"` |
 | `tf_secrets`, `tf_secrets_service` | none, `<slug>-tf` | Terraform variables kept in the macOS keychain, exported as `TF_VAR_<name>` inside the plan's thread only (`yarn deploy secrets`) |
 

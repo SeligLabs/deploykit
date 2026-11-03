@@ -37,6 +37,7 @@ done
 if [[ -n "$build" ]]; then
   (cd "$ROOT" && bash -c "$build") || die "The build failed ($build)."
 fi
-# shellcheck disable=SC2086 # --keep is a list of patterns
-dk_site_sync "$out" "$bucket" "$distribution" "$immutable" $keep
+# --keep's patterns are split, never globbed against the working directory.
+read -ra keeps <<<"$keep"
+dk_site_sync "$out" "$bucket" "$distribution" "$immutable" ${keeps[@]+"${keeps[@]}"}
 echo "✓ Published to s3://$bucket"

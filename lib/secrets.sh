@@ -27,12 +27,13 @@ dk_tf_secrets_tfvars() { printf '%s' "$ROOT/$(dk_c infra_dir infrastructure)/var
 # even when none exist (the tfvars fallback).
 dk_tf_secrets_load() {
   local name encoded value env loaded=0 service tfvars count=0
-  local -a missing=()
+  local -a missing=() names=()
   [[ -n "$(dk_c tf_secrets)" ]] || return 0
   command -v security >/dev/null 2>&1 || return 0
   service="$(dk_tf_secrets_service)"
   tfvars="$(dk_tf_secrets_tfvars)"
-  for name in $(dk_c tf_secrets); do
+  read -ra names <<<"$(dk_c tf_secrets)"
+  for name in ${names[@]+"${names[@]}"}; do
     count=$((count + 1))
     env="TF_VAR_${name}"
     [[ -z "${!env:-}" ]] || continue

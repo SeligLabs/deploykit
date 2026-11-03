@@ -6,7 +6,9 @@
 #   dk_config outputs "API_URL=api_url WEB_BUCKET=web_bucket *_TABLE=table_names"
 #
 # A name with * takes a map output: one variable per key, the key upper-cased
-# in place of the * (table_names {users = "users"} → USERS_TABLE=users).
+# in place of the * (table_names {users = "users"} → USERS_TABLE=users). A
+# name ending in ? is optional: exported when it has a value, never waited on
+# (VAPID_PUBLIC_KEY?=vapid_public_key, empty until browser push is set up).
 # Read in Preflight (after the AWS check) and again after the apply, and
 # exported over whatever the env files said, for the builds and the hooks.
 # On a first deploy there are none yet: then the lanes that --waits-for
@@ -49,6 +51,7 @@ dk_outputs_values() {
   read -ra pairs <<<"$(dk_c outputs)"
   for pair in ${pairs[@]+"${pairs[@]}"}; do
     var=${pair%%=*} name=${pair#*=}
+    var=${var%\?}
     if [[ "$var" == *'*'* ]]; then
       jq -r --arg n "$name" --arg v "$var" '
         (.[$n].value // {}) | to_entries[] as $e
@@ -95,7 +98,8 @@ dk_outputs_ready_default() {
   read -ra pairs <<<"$(dk_c outputs)"
   for pair in ${pairs[@]+"${pairs[@]}"}; do
     var=${pair%%=*}
-    [[ "$var" == *'*'* ]] && continue
+    # NAME?=output: optional (empty until a feature is set up), never waited on.
+    [[ "$var" == *'*'* || "$var" == *'?' ]] && continue
     grep -q "^$var=." <<<"$values" || return 1
   done
   return 0

@@ -53,6 +53,7 @@ dk_site_make() {
 
 dk_site_publish() {
   local id=$1 bucket distribution url
+  local -a keep=()
   [[ "$(dk_t "$id" early)" == 1 ]] || dk_site_make "$id"
   bucket="$(dk_t "$id" bucket)"
   distribution="$(dk_t "$id" distribution)"
@@ -60,9 +61,10 @@ dk_site_publish() {
   [[ -n "$bucket" && -n "${!bucket:-}" ]] ||
     die "${bucket:---bucket} is empty: deploy the infrastructure first (its outputs name the bucket)."
   [[ -z "$distribution" || -n "${!distribution:-}" ]] || echo "No ${distribution}: nothing to clear."
-  # shellcheck disable=SC2046 # --keep is a list of patterns
+  # --keep's patterns are split, never globbed against the working directory.
+  read -ra keep <<<"$(dk_t "$id" keep)"
   dk_site_sync "$ROOT/$(dk_t "$id" out)" "${!bucket}" "${distribution:+${!distribution:-}}" \
-    "$(dk_t "$id" immutable _next/static)" $(dk_t "$id" keep)
+    "$(dk_t "$id" immutable _next/static)" ${keep[@]+"${keep[@]}"}
   if [[ -n "$url" && -n "${!url:-}" ]]; then
     dk_result "$id" "published to ${!url}"
   else

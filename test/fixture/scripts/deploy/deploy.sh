@@ -9,7 +9,7 @@ dk_config api 1 env_loader "bash scripts/with-env.sh" min_build yes settings_fil
 # A partial S3 backend and per-stage variables, expanded in the plan's thread.
 # shellcheck disable=SC2016 # expanded by the kit
 # Terraform's outputs, read live; env-sync writes them into env/.env for dev.
-dk_config outputs "API_URL=api_url *_TABLE=table_names" outputs_files "env/.env"
+dk_config outputs "API_URL=api_url *_TABLE=table_names VAPID_PUBLIC_KEY?=vapid_public_key" outputs_files "env/.env"
 # Lint and the Mac app's export build in one directory: they take turns.
 dk_config lint_lock web
 dk_config tf_init_args '-reconfigure -backend-config=key=$FIXTURE_STAGE.tfstate' tf_plan_args '-var=stage=$FIXTURE_STAGE'

@@ -518,7 +518,8 @@ dk_main() {
   # No pager: with a terminal on stdout the AWS CLI pipes through less, which
   # restores the screen on exit and with it the terminal's scroll region.
   export AWS_PAGER=""
-  if [[ -z "${AWS_PROFILE:-}" && -n "$(dk_c aws_profile)" ]]; then
+  # Not in CI, whose credentials come from its environment (OIDC), not a profile.
+  if [[ -z "${AWS_PROFILE:-}" && -z "${CI:-}" && -n "$(dk_c aws_profile)" ]]; then
     AWS_PROFILE="$(dk_c aws_profile)"
     export AWS_PROFILE
   fi
