@@ -14,6 +14,10 @@ SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/deploykit-test.XXXXXX")"
 trap '[[ -n "${KEEP:-}" ]] || rm -rf "$SCRATCH"' EXIT
 PASSED=0
 FAILED=()
+# An identity for every commit the scenarios make (the fixture's, the
+# deploy's bump), so a CI runner with none can run them.
+export GIT_AUTHOR_NAME=deploykit-test GIT_AUTHOR_EMAIL=test@example.invalid
+export GIT_COMMITTER_NAME=deploykit-test GIT_COMMITTER_EMAIL=test@example.invalid
 
 # fresh: a new copy of the fixture as a git repo with an origin; sets APP.
 fresh() {
