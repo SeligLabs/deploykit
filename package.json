@@ -1,6 +1,6 @@
 {
   "name": "@seliglabs/deploykit",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "description": "The shared deploy engine for SeligLabs apps: groups and targets, drivers, the deploy UI.",
   "license": "UNLICENSED",
