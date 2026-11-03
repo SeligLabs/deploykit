@@ -97,6 +97,10 @@ case_full() {
   # nothing is uploaded before it.
   (($(line_of 'terraform apply' "$SCRATCH/stub.log") < $(line_of '^UPLOAD' "$SCRATCH/stub.log"))) || fail "an upload came before the apply"
   expect_log "terraform plan .*\(TF_VAR_push_key=secret-value\)"
+  # --watch and --tests: each scheme on its own simulator, before the archive.
+  expect_log "xcodebuild test .*-scheme FixtureWatch -destination id=WATCH-UDID"
+  expect_log "xcodebuild test .*-scheme FixtureWidgets -destination id=IPHONE-UDID"
+  (($(line_of 'scheme FixtureWatch' "$SCRATCH/stub.log") < $(line_of 'fastlane ios build' "$SCRATCH/stub.log"))) || fail "the watch tests came after the archive"
   git -C "$SCRATCH/origin-full.git" rev-parse -q --verify refs/tags/v1.0.0+11 >/dev/null || fail "no tag v1.0.0+11 on origin"
   # No log holds the environment (a bare export in Prepare printed it all).
   ! grep -rlq 'declare -x' "$APP/apps" "$SCRATCH/cache" 2>/dev/null || fail "a log holds the environment: $(grep -rl 'declare -x' "$APP/apps" "$SCRATCH/cache" | head -n 1)"
@@ -254,6 +258,50 @@ case_demo() {
   no_leftovers
 }
 
+# ios_lane_log: the iOS lane's log, where its failures are.
+ios_lane_log() { cat "$APP/apps/mobile/build/deploy-ios.log" 2>/dev/null; }
+expect_ios_log() { grep -qF -- "$1" <<<"$(ios_lane_log)" || fail "the iOS lane's log lacks: $1"; }
+
+# A target command with the outputs in place: just the iOS lane.
+ios_ready() {
+  fresh "$1"
+  echo "API_URL=https://api.example.invalid" >>"$APP/env/.env"
+  git -C "$APP" commit -qam outputs && git -C "$APP" push -q origin main
+}
+
+case_watch_missing() {
+  ios_ready watch-missing
+  STUB_NO_WATCH=1 deploy "1\n" mobile:ios
+  expect_rc 1
+  expect_ios_log "The archive has no watch app"
+  [[ "$(uploads)" == 0 ]] || fail "uploaded an archive without its watch app"
+}
+
+case_watch_version() {
+  ios_ready watch-version
+  STUB_WATCH_BUILD=1 deploy "1\n" mobile:ios
+  expect_rc 1
+  expect_ios_log "The watch app's W.appex is 1.0.0 (1), not 1.0.0 (10)."
+  [[ "$(uploads)" == 0 ]] || fail "uploaded a mismatched watch extension"
+}
+
+case_xctest_fails() {
+  ios_ready xctest-fails
+  STUB_XCTEST_FAIL=FixtureWatch deploy "1\n" mobile:ios
+  expect_rc 1
+  expect_ios_log "The FixtureWatch tests failed. Nothing was archived."
+  expect_no_log "fastlane ios build"
+}
+
+case_no_simulators() {
+  ios_ready no-sims
+  STUB_NO_SIMS=1 deploy "1\n" mobile:ios
+  expect_rc 0
+  expect_ios_log "FixtureWatch tests skipped: no watchOS simulator"
+  expect_ios_log "FixtureWidgets tests skipped: no iOS simulator"
+  expect_log "^UPLOAD ios mobile"
+}
+
 case_usage() {
   fresh usage
   deploy "" nosuch
@@ -262,7 +310,8 @@ case_usage() {
 }
 
 SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
-  first_deploy_target_command infra reuse already_uploaded settings demo usage)
+  first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
+  no_simulators settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
 for s in "${SCENARIOS[@]}"; do
   CASE_OK=1

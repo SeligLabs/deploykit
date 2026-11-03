@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Stub: `simctl list devices available -j`, one watch and one iPhone
+# (STUB_NO_SIMS=1: none).
+echo "xcrun $*" >>"$STUB_LOG"
+if [[ "$1 $2" == "simctl list" ]]; then
+  if [[ -n "${STUB_NO_SIMS:-}" ]]; then echo '{"devices":{}}'; exit 0; fi
+  cat <<'JSON'
+{"devices":{
+ "com.apple.CoreSimulator.SimRuntime.watchOS-12-0":[{"udid":"WATCH-UDID","name":"Apple Watch Series 11","isAvailable":true}],
+ "com.apple.CoreSimulator.SimRuntime.iOS-27-0":[{"udid":"IPHONE-UDID","name":"iPhone 18","isAvailable":true}]}}
+JSON
+fi
+exit 0

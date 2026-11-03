@@ -1,2 +1,11 @@
 #!/usr/bin/env bash
+# Stub: -version, and `test -scheme <s>` (STUB_XCTEST_FAIL=<scheme> fails it).
 echo "xcodebuild $*" >>"$STUB_LOG"
+[[ "$1" == -version ]] && { echo "Xcode 27.0"; exit 0; }
+if [[ "$1" == test ]]; then
+  scheme=""
+  while [[ $# -gt 0 ]]; do [[ "$1" == -scheme ]] && scheme=$2; shift; done
+  [[ "${STUB_XCTEST_FAIL:-}" != "$scheme" ]] || { echo "Test Case '-[${scheme}Tests testIt]' failed"; exit 65; }
+  echo "Executed 3 tests, with 0 failures (0 unexpected) in 0.1 (0.2) seconds"
+fi
+exit 0

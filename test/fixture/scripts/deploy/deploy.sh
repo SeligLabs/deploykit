@@ -17,7 +17,7 @@ dk_target web www --driver site --label "www.example.com   the marketing site" \
 dk_group mobile "Mobile"
 dk_target mobile ios --driver fastlane --platform ios --dir apps/mobile --artifact "apps/mobile/build/deploy/{slug}.ipa" \
   --lock xcode --reuse --prepare "dk_expo_prebuild ios @fixture/mobile" --waits-for outputs --embeds "API_URL" \
-  --steps "Check Prepare Watch Build Verify Gate Upload"
+  --watch FixtureWatch --tests "FixtureWidgets" --extensions "FixtureWidgets.appex"
 dk_target mobile android --driver fastlane --platform android --dir apps/mobile \
   --artifact apps/mobile/android/app-release.aab --lock gradle --play --waits-for outputs --embeds "API_URL"
 
@@ -38,7 +38,7 @@ outputs_ready() { [[ -n "${API_URL:-}" ]]; }
 infra_build_hook() { yarn workspace @fixture/api build; }
 infra_secrets_hook() { export TF_VAR_push_key=secret-value; }
 after_apply_hook() { echo "API_URL=https://api.example.invalid" >>"$ROOT/env/.env"; echo "synced"; }
-ios_before_build() { step Watch "Watch tests"; echo "watch tests passed"; }
+ios_before_build() { echo "ios_before_build ran"; }
 macos_build() { step Package "Package the Mac app"; echo "packaged"; [[ "${STUB_FAIL:-}" != macos ]] || die "macOS package failed (stub)"; }
 macos_publish() { step Upload "Upload the DMG"; aws s3 cp mac.dmg s3://feed/; dk_result macos "DMG $VERSION ($BUILD)"; }
 androidtv_after_publish() { echo "Fire TV: upload the APK by hand."; }

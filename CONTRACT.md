@@ -120,8 +120,14 @@ Steps: `Gate Build Upload Invalidate`.
 - `--bundle-id <id>`
 - `--upload-key settings|none`
 - `--progress "<regex>"`
+- `--watch <scheme>` (ios): the app carries an Apple Watch app. That scheme's XCTests run on the newest watchOS simulator before the archive, and the archive must hold the watch app (`Payload/*.app/Watch/*.app`, bundle ID `--watch-bundle-id`, default `<bundle id>.watchkitapp`) and every extension in it, at the app's version and build. The watch isn't a target of its own: it ships inside the iPhone app's archive and upload.
+- `--tests "<scheme ...>"` (ios, tvos): more XCTest schemes before the archive, on the newest iPhone or Apple TV simulator.
+- `--extensions "<Name.appex ...>"` (ios, tvos): extensions the archive must hold in the app's `PlugIns/`, at its version and build, with bundle IDs under the app's.
+- `--xcode-project <path>`: the project the tests build; default the first `<dir>/ios/*.xcodeproj`.
 
-Steps: `Check Prepare Build Verify Gate Upload`.
+The tests run ad-hoc signed inside the target's lock, each logging to `<dir>/build/xctest-<scheme>.log`. They skip with a warning when there's no Xcode or no simulator to run on; a failing test stops the build before anything ships.
+
+Steps: `Check Prepare Build Verify Gate Upload`, with `Tests` before `Build` when `--watch` or `--tests` is set.
 
 **The Fastfile contract.** In `--dir`, under `platform :<platform>`, the Fastfile has three lanes:
 - `check_build [version:<v>] build:<b> out:<file>` writes `<state> <latest>` on the file's first line. The state is one of `new`, `uploaded`, `behind` or `rejected`, and a rejected build's reasons follow, one per line. Android lanes take no version.
@@ -131,7 +137,7 @@ Steps: `Check Prepare Build Verify Gate Upload`.
 Lanes read their settings from `ENV` (the kit exports them), get no stdin, and run with `FASTLANE_SKIP_UPDATE_CHECK=1`.
 
 **What the kit verifies:**
-- **ios and tvos:** the platform (`iphoneos` or `appletvos`), the bundle id, the version and build, and `--embeds`.
+- **ios and tvos:** the platform (`iphoneos` or `appletvos`), the bundle id, the version and build, `--embeds`, the watch app (`--watch`) and `--extensions`.
 - **android:** the upload key's signature (unless `--upload-key none`) and `--embeds`.
 - **mac:** only the app's `<id>_verify`.
 

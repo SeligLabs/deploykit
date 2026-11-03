@@ -2,6 +2,13 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
+## Unreleased
+
+New options (a minor release: apps keep working):
+
+- **The watch, as part of the iOS target:** `--watch <scheme>` runs the watch app's XCTests on a watchOS simulator before the archive and checks the watch app and its extensions in the archive (bundle ID, version and build). `--tests "<scheme ...>"` runs more XCTest schemes (widgets, say) on the platform's simulator, and `--extensions "<Name.appex ...>"` checks the app's own extensions. A `Tests` step comes before `Build` when either is set. An app's hand-written watch tests and archive checks can go.
+- **Fix:** a missing `Payload/*.app` stopped Verify without a message (an empty glob under pipefail); it now says what's missing.
+
 ## 0.0.2 (2026-11-03)
 
 - **Fix:** a fastlane target with no `--env` printed the whole environment (secrets included) into its lane log at Prepare. Every app on 0.0.1 should move to this release before its next store deploy; delete `apps/*/build/deploy-*.log` and `~/.cache/<slug>/deploy-logs/` from runs made on 0.0.1.

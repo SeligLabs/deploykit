@@ -36,6 +36,17 @@ case "$lane" in
 </dict></plist>
 PLIST
         echo "${API_URL:-}" >"$work/Payload/App.app/config"
+        # The iPhone app carries a watch app (with a widget extension) and a
+        # widget extension of its own.
+        if [[ $platform == ios ]]; then
+          bundle_plist() {
+            mkdir -p "$1"
+            printf '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>%s</string><key>CFBundleShortVersionString</key><string>%s</string><key>CFBundleVersion</key><string>%s</string></dict></plist>' "$2" "$version" "${3:-$b}" >"$1/Info.plist"
+          }
+          [[ -n "${STUB_NO_WATCH:-}" ]] || bundle_plist "$work/Payload/App.app/Watch/FixtureWatch.app" com.example.fixture.watchkitapp
+          [[ -n "${STUB_NO_WATCH:-}" ]] || bundle_plist "$work/Payload/App.app/Watch/FixtureWatch.app/PlugIns/W.appex" com.example.fixture.watchkitapp.widgets "${STUB_WATCH_BUILD:-$b}"
+          bundle_plist "$work/Payload/App.app/PlugIns/FixtureWidgets.appex" com.example.fixture.widgets
+        fi
         for i in 1 2 3; do echo "▸ Compiling File$i.swift"; done
         ;;
       android)

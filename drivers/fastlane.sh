@@ -41,6 +41,24 @@
 #                            ANDROID_UPLOAD_* key (default settings)
 #   --progress "<regex>"     a build line to count (▸ for Xcode, > Task : for
 #                            Gradle by default)
+#   --watch <scheme>         ios: the app carries an Apple Watch app. Before
+#                            the archive, that scheme's XCTests run on the
+#                            newest watchOS simulator; in the archive, the
+#                            watch app (Payload/*.app/Watch/*.app) and its
+#                            extensions must be there, at the app's version
+#                            and build, the app with --watch-bundle-id
+#                            (default <bundle id>.watchkitapp)
+#   --tests "<scheme ...>"   more XCTest schemes before the archive, on the
+#                            newest simulator of the target's platform
+#                            (an iPhone, or an Apple TV)
+#   --extensions "<X.appex ...>"  extensions the archive must carry in the
+#                            app's PlugIns/, at its version and build, their
+#                            bundle IDs under the app's
+#   --xcode-project <path>   the project the tests build (default the first
+#                            <dir>/ios/*.xcodeproj, as expo prebuild makes it)
+#   The tests skip, with a warning, without Xcode or a simulator to run on
+#   (add one in Xcode → Settings → Components); a failing test stops the
+#   build before anything ships.
 #
 # Hooks (CONTRACT.md): <id>_after_prepare, <id>_before_build (inside the
 # lock), <id>_after_build, <id>_verify <unzipped dir or app>, <id>_preflight.
@@ -52,7 +70,18 @@ DK_UPLOAD_KEY_SETTINGS="ANDROID_UPLOAD_KEYSTORE_PATH ANDROID_UPLOAD_KEYSTORE_PAS
 dk_fastlane_platform() { dk_t "$1" platform; }
 dk_fastlane_apple() { [[ "$(dk_fastlane_platform "$1")" != android ]]; }
 
-dk_fastlane_steps() { echo "Check Prepare Build Verify Gate Upload"; }
+dk_fastlane_steps() {
+  if dk_fastlane_has_tests "$1"; then
+    echo "Check Prepare Tests Build Verify Gate Upload"
+  else
+    echo "Check Prepare Build Verify Gate Upload"
+  fi
+}
+
+# dk_fastlane_has_tests <id>: XCTests run before this target's archive.
+dk_fastlane_has_tests() {
+  dk_fastlane_apple "$1" && [[ -n "$(dk_t "$1" watch)$(dk_t "$1" tests)" ]]
+}
 
 dk_fastlane_tools() {
   if dk_fastlane_apple "$1"; then echo "bundle xcodebuild unzip"; else echo "bundle java keytool unzip"; fi
@@ -275,6 +304,122 @@ dk_verify_embeds() {
   done
 }
 
+# dk_verify_bundle <dir> <what> [<bundle id> | <prefix>.*]: a bundle in the
+# archive at the app's version and build, with that bundle ID or one under
+# that prefix (App Store Connect flags an extension that isn't).
+dk_verify_bundle() {
+  local dir=$1 what=$2 want=${3:-} got
+  [[ -n "$dir" && -d "$dir" ]] || die "The archive has no $what."
+  if [[ -n "$want" ]]; then
+    got="$(dk_plist CFBundleIdentifier "$dir/Info.plist")"
+    if [[ "$want" == *'.*' ]]; then
+      [[ "$got" == "${want%\*}"* ]] || die "The $what's bundle ID is $got, not under ${want%.\*}."
+    else
+      [[ "$got" == "$want" ]] || die "The $what's bundle ID is $got, not $want."
+    fi
+  fi
+  got="$(dk_plist_version "$dir/Info.plist")"
+  [[ "$got" == "$VERSION ($BUILD)" ]] || die "The $what is $got, not $VERSION ($BUILD)."
+}
+
+# dk_verify_watch <id> <app>: --watch's app and every extension in it. A
+# mismatch fails App Store validation, or installs nothing on the watch.
+dk_verify_watch() {
+  local id=$1 app=$2 watch appex bundle
+  [[ -n "$(dk_t "$id" watch)" ]] || return 0
+  bundle="$(dk_t "$id" bundle_id "$APP_BUNDLE_ID")"
+  watch="$(compgen -G "$app/Watch/*.app" | head -n 1 || true)"
+  [[ -n "$watch" ]] || die "The archive has no watch app (Payload/*.app/Watch/*.app)."
+  dk_verify_bundle "$watch" "watch app" "$(dk_t "$id" watch_bundle_id "$bundle.watchkitapp")"
+  for appex in "$watch"/PlugIns/*.appex; do
+    [[ -d "$appex" ]] || continue
+    dk_verify_bundle "$appex" "watch app's ${appex##*/}" "$bundle.*"
+  done
+}
+
+# dk_verify_extensions <id> <app>: each of --extensions in the app's PlugIns/.
+dk_verify_extensions() {
+  local id=$1 app=$2 name bundle
+  bundle="$(dk_t "$id" bundle_id "$APP_BUNDLE_ID")"
+  for name in $(dk_t "$id" extensions); do
+    dk_verify_bundle "$app/PlugIns/$name" "extension $name" "$bundle.*"
+  done
+}
+
+# dk_sim <runtime> [<name prefix>]: the UDID of an available simulator on the
+# newest runtime (watchOS, iOS, tvOS), or nothing. By UDID: a destination by
+# name matches one simulator per runtime.
+dk_sim() {
+  xcrun simctl list devices available -j 2>/dev/null | jq -r --arg rt "$1" --arg name "${2:-}" '
+    [.devices | to_entries[]
+      | select(.key | test($rt + "-[0-9]+-[0-9]+$"))
+      | (.key | capture($rt + "-(?<maj>[0-9]+)-(?<min>[0-9]+)$")) as $v
+      | .value[] | select(.isAvailable != false and (.name | startswith($name)))
+      | {udid, maj: ($v.maj | tonumber), min: ($v.min | tonumber)}]
+    | sort_by(.maj, .min) | last | .udid // empty' 2>/dev/null
+}
+
+# dk_xcode_project <id>: the project --tests and --watch build.
+dk_xcode_project() {
+  local p
+  p="$(dk_t "$1" xcode_project)"
+  if [[ -n "$p" ]]; then
+    printf '%s' "$ROOT/$p"
+  else
+    compgen -G "$ROOT/$(dk_t "$1" dir .)/ios/*.xcodeproj" | grep -v "/Pods" | head -n 1 || true
+  fi
+}
+
+# dk_xctest <id> <scheme> <udid>: one scheme's XCTests, ad-hoc signed (an
+# unsigned build has no keychain). Its log is kept beside the target's.
+dk_xctest() {
+  local id=$1 scheme=$2 udid=$3 dir log project
+  dir="$ROOT/$(dk_t "$id" dir .)/build"
+  log="$dir/xctest-$scheme.log"
+  project="$(dk_xcode_project "$id")"
+  [[ -n "$project" ]] || die "No Xcode project for the $scheme tests: set --xcode-project."
+  mkdir -p "$dir"
+  spinner_label "testing $scheme on a simulator"
+  if xcodebuild test -project "$project" -scheme "$scheme" -destination "id=$udid" \
+    -derivedDataPath "$dir/xctest" CODE_SIGN_IDENTITY=- >"$log" 2>&1 </dev/null; then
+    { grep -E 'Executed [0-9]+ tests?' "$log" || echo "passed"; } | tail -n 1 |
+      sed -E "s/^[[:space:]]*/$scheme: /; s/ in [0-9.]+ .*//"
+  else
+    printf '\n\e[1;31m── %s tests (last 40 lines of %s)\e[0m\n' "$scheme" "$log"
+    tail -n 40 "$log"
+    die "The $scheme tests failed. Nothing was archived."
+  fi
+}
+
+# dk_fastlane_tests <id>: Tests, inside the target's lock: --watch's scheme
+# on a watch simulator, then --tests on the platform's.
+dk_fastlane_tests() {
+  local id=$1 scheme udid runtime=iOS device=iPhone
+  step Tests "XCTests before the archive"
+  if ! command -v xcodebuild >/dev/null 2>&1 || ! xcodebuild -version >/dev/null 2>&1; then
+    warn "Tests skipped: Xcode isn't installed."
+    return 0
+  fi
+  scheme="$(dk_t "$id" watch)"
+  if [[ -n "$scheme" ]]; then
+    udid="$(dk_sim watchOS)"
+    if [[ -n "$udid" ]]; then
+      dk_xctest "$id" "$scheme" "$udid"
+    else
+      warn "$scheme tests skipped: no watchOS simulator; add one in Xcode → Settings → Components."
+    fi
+  fi
+  [[ "$(dk_fastlane_platform "$id")" == tvos ]] && runtime=tvOS device="Apple TV"
+  for scheme in $(dk_t "$id" tests); do
+    udid="$(dk_sim "$runtime" "$device")"
+    if [[ -n "$udid" ]]; then
+      dk_xctest "$id" "$scheme" "$udid"
+    else
+      warn "$scheme tests skipped: no $runtime simulator; add one in Xcode → Settings → Components."
+    fi
+  done
+}
+
 # dk_fastlane_verify <id>: the artifact is this app at this version and build,
 # signed for its store, with the env's values inside; then the app's checks.
 dk_fastlane_verify() {
@@ -287,7 +432,7 @@ dk_fastlane_verify() {
   case "$platform" in
     ios | tvos)
       unzip -q "$a" -d "$dir"
-      app="$(compgen -G "$dir/Payload/*.app" | head -n 1)"
+      app="$(compgen -G "$dir/Payload/*.app" | head -n 1 || true)"
       [[ -n "$app" ]] || die "The archive has no Payload/*.app."
       plist="$app/Info.plist"
       want=iphoneos
@@ -300,6 +445,8 @@ dk_fastlane_verify() {
       got="$(dk_plist_version "$plist")"
       [[ "$got" == "$VERSION ($code)" ]] || die "The archive is $got, not $VERSION ($code)."
       dk_verify_embeds "$id" "$dir/Payload"
+      dk_verify_watch "$id" "$app"
+      dk_verify_extensions "$id" "$app"
       dk_hook "${id}_verify" "$app"
       ;;
     android)
@@ -323,6 +470,7 @@ dk_fastlane_verify() {
 # dk_fastlane_compile <id>: Build, inside the target's lock.
 dk_fastlane_compile() {
   local id=$1 cache total n a regex log="$WORK/$1-build.log"
+  dk_fastlane_has_tests "$id" && dk_fastlane_tests "$id"
   dk_hook "${id}_before_build"
   a="$(dk_fastlane_artifact "$id")"
   step Build "Build $VERSION ($(dk_fastlane_code "$id"))"
