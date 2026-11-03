@@ -76,7 +76,7 @@ In a terminal every run is under the deploy UI. Set `DEPLOY_TUI=0` for the plain
 | `settings_files` | `env/.env` | where settings are read from, by name (see Settings): the app's git-ignored base env file, which holds the release settings with the rest |
 | `tui`, `notify`, `keep_logs` | `yes`, `yes`, `5` | the deploy UI, the notification at the end, how many runs' logs to keep; `DEPLOY_TUI=0`, `DEPLOY_NOTIFY=0` and `DEPLOY_KEEP_LOGS` in the shell override them for one run |
 | `outputs` | none | Terraform outputs read live from the state, as `NAME=output` words (`NAME_*=map_output`: one variable per key); exported in Preflight and after the apply, over the env files. With it, `--waits-for outputs` waits until every mapped output has a value (unless the app defines `outputs_ready`) |
-| `outputs_files` | `env/${APP_ENV:-prod}.env` | where `yarn deploy env-sync` writes them: `file` (all), `file!A!B` (all but), `file:A,B` (only); an `env_sync_hook <json>` replaces it |
+| `outputs_files` | `env/${APP_ENV:-prod}.env` | where `yarn deploy env-sync` writes them: `file` (all), `file!A!B` (all but), `file:A,B` (only); an `env_sync_hook <json>` replaces it, and may call `dk_outputs_values <json>` (the mapped `NAME=value` lines) and pipe them to `node "$DK_ROOT/bin/env-write.mjs" <file> "<only>" "<except>"` |
 | `tf_secrets`, `tf_secrets_service` | none, `<slug>-tf` | Terraform variables kept in the macOS keychain, exported as `TF_VAR_<name>` inside the plan's thread only (`yarn deploy secrets`) |
 
 ## Groups and targets
@@ -187,7 +187,7 @@ The engine calls each hook only when the app has defined it.
 | `<id>_after_publish` | foreground, after the lanes join | a note to the person deploying |
 | `<id>_summary` | Start | the target's line |
 
-Helpers an app may call: `step`, `step_mark`, `spinner_label`, `progress_total`, `progress_set`, `thread_run`, `with_lock`, `dk_result`, `dk_setting`, `dk_setting_path`, `dk_expo_prebuild`, `state_bucket_ensure`, `state_bucket_adopt`, `dk_plan_json`, `dk_plist`, `die`, `warn`, `confirm`. Variables an app may read: `ROOT`, `WORK`, `VERSION`, `BUILD`, `TAG`, `NOTES_FILE`, `APP_SLUG`, `APP_NAME`, `APP_BUNDLE_ID`, `DO_INFRA`, `DO_RELEASE`. `bin/aws-session.sh` (Preflight's AWS check) logs in again when the SSO token has under `AWS_SESSION_MIN_SECONDS` (1800) left, so it outlives the deploy. Any kit function can be redefined after `source` as a last resort, at the app's own risk across upgrades.
+Helpers an app may call: `step`, `step_mark`, `spinner_label`, `progress_total`, `progress_set`, `thread_run`, `with_lock`, `dk_result`, `dk_setting`, `dk_setting_path`, `dk_expo_prebuild`, `state_bucket_ensure`, `state_bucket_adopt`, `dk_plan_json`, `dk_plist`, `dk_outputs_values`, `die`, `warn`, `confirm`. Variables an app may read: `DK_ROOT` (the kit), `ROOT`, `WORK`, `VERSION`, `BUILD`, `TAG`, `NOTES_FILE`, `APP_SLUG`, `APP_NAME`, `APP_BUNDLE_ID`, `DO_INFRA`, `DO_RELEASE`. `bin/aws-session.sh` (Preflight's AWS check) logs in again when the SSO token has under `AWS_SESSION_MIN_SECONDS` (1800) left, so it outlives the deploy. Any kit function can be redefined after `source` as a last resort, at the app's own risk across upgrades.
 
 ## Settings
 

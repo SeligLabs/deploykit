@@ -27,6 +27,12 @@ dk_outputs_fetch() {
   local -a args=()
   dir="${XDG_CACHE_HOME:-$HOME/.cache}/$APP_SLUG/tf-outputs"
   mkdir -p "$dir"
+  # A variable tf_init_args names but the env files don't set: say so,
+  # rather than set -u's bare "unbound variable".
+  if ! (eval "args=($(dk_c tf_init_args))") 2>/dev/null; then
+    echo "tf_init_args names a variable that isn't set ($(dk_c tf_init_args)): check the env files." >"$log"
+    return 1
+  fi
   eval "args=($(dk_c tf_init_args))"
   TF_DATA_DIR="$dir" terraform -chdir="$ROOT/$(dk_c infra_dir)" init -input=false -reconfigure -lockfile=readonly \
     ${args[@]+"${args[@]}"} >"$log" 2>&1 || return 1
@@ -38,7 +44,10 @@ dk_outputs_fetch() {
 # that has a value.
 dk_outputs_values() {
   local json=$1 pair var name
-  for pair in $(dk_c outputs); do
+  local -a pairs=()
+  # Split, never globbed: *_TABLE=table_names would match a file of that name.
+  read -ra pairs <<<"$(dk_c outputs)"
+  for pair in ${pairs[@]+"${pairs[@]}"}; do
     var=${pair%%=*} name=${pair#*=}
     if [[ "$var" == *'*'* ]]; then
       jq -r --arg n "$name" --arg v "$var" '
@@ -78,7 +87,9 @@ dk_outputs_read() {
 # dk_outputs_ready_default: every mapped (non-map) output has a value.
 dk_outputs_ready_default() {
   local pair var
-  for pair in $(dk_c outputs); do
+  local -a pairs=()
+  read -ra pairs <<<"$(dk_c outputs)"
+  for pair in ${pairs[@]+"${pairs[@]}"}; do
     var=${pair%%=*}
     [[ "$var" == *'*'* || -n "${!var:-}" ]] || return 1
   done
