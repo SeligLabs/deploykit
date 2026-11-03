@@ -2,7 +2,7 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
-## 0.0.3 (2026-11-03)
+## Unreleased
 
 The deploy reads Terraform's outputs live, and the scripts every app kept a copy of are the kit's.
 
@@ -16,7 +16,7 @@ The deploy reads Terraform's outputs live, and the scripts every app kept a copy
 - **The deploy's own settings in deploy.sh:** `dk_config tui`, `notify`, `keep_logs` (the env still overrides for one run); `env_files` loads env files without a loader script.
 - **`--tv`:** an Android TV bundle must declare leanback.
 
-## 0.0.3 (unreleased)
+## 0.0.3 (2026-11-03)
 
 New options; apps keep working:
 
