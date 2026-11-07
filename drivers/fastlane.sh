@@ -214,28 +214,46 @@ dk_upload_key_sha256() {
     sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1
 }
 
-# dk_gradle_stop_daemons: stop every Gradle daemon on the machine before the
-# lanes build, once per run. Each build reuses any daemon with its JVM
+# dk_gradle_stop_daemons: stop the idle Gradle daemons on the machine before
+# the lanes build, once per run. Each build reuses any daemon with its JVM
 # settings, and a daemon left by another shell can be broken for good (seen
 # failing every exec of node while a fresh JVM built fine). Stopping loses
-# nothing: the build cache is on disk. Through any wrapper on the machine:
-# a generated project's gradlew may not exist yet.
+# nothing: the build cache is on disk. Never a busy one: that's another
+# run's build on this machine (another app's deploy; a --stop here killed
+# one mid-build, "Gradle build daemon has been stopped: stop command
+# received"), so with one busy only the idle ones go, each by its pid.
 dk_gradle_stop_daemons() {
-  local gradle id
+  local gradle status pid
   [[ ! -f "$WORK/gradle-stopped" ]] || return 0
   touch "$WORK/gradle-stopped"
+  gradle="$(dk_gradle_wrapper)" || return 0
+  status="$(cd "$(dirname "$gradle")" && "$gradle" --status 2>/dev/null)" || return 0
+  if ! grep -qE '^ *[0-9]+ +BUSY' <<<"$status"; then
+    (cd "$(dirname "$gradle")" && "$gradle" --stop >/dev/null 2>&1) || true
+    return 0
+  fi
+  while read -r pid; do
+    [[ -z "$pid" ]] || kill "$pid" 2>/dev/null || true
+  done < <(awk '$2 == "IDLE" { print $1 }' <<<"$status")
+}
+
+# dk_gradle_wrapper: a Gradle wrapper on this machine, a target's generated
+# project's first (it may not exist yet), else one of the distributions
+# ~/.gradle keeps; fails when there's none, so there's no daemon to stop.
+dk_gradle_wrapper() {
+  local gradle id
   for id in ${DK_TARGET_IDS[@]+"${DK_TARGET_IDS[@]}"}; do
     gradle="$ROOT/$(dk_t "$id" dir .)/android/gradlew"
-    if [[ -x "$gradle" ]]; then
-      (cd "$(dirname "$gradle")" && "$gradle" --stop >/dev/null 2>&1) || true
-      return 0
-    fi
+    [[ -x "$gradle" ]] || continue
+    echo "$gradle"
+    return 0
   done
   for gradle in "$HOME"/.gradle/wrapper/dists/gradle-*/*/gradle-*/bin/gradle; do
     [[ -x "$gradle" ]] || continue
-    (cd "$(dirname "$gradle")" && "$gradle" --stop >/dev/null 2>&1) || true
+    echo "$gradle"
     return 0
   done
+  return 1
 }
 
 # dk_fastlane_check <id> <version> <build>: the store's answer: sets

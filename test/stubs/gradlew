@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Stub: a generated project's Gradle wrapper, as the daemon stop sees it
+# (a scenario copies it to apps/mobile/android/gradlew). --status lists an
+# idle daemon (STUB_GRADLE_IDLE_PID, a real process the stop may kill) and,
+# with STUB_GRADLE_BUSY, another run's busy one. Records every call in
+# $STUB_LOG.
+echo "gradlew $*" >>"$STUB_LOG"
+case "$1" in
+  --status)
+    echo "   PID STATUS   INFO"
+    [[ -z "${STUB_GRADLE_IDLE_PID:-}" ]] || echo " ${STUB_GRADLE_IDLE_PID} IDLE     9.4.1"
+    [[ -z "${STUB_GRADLE_BUSY:-}" ]] || echo " 4242 BUSY     9.4.1"
+    ;;
+esac
+exit 0

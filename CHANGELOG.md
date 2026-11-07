@@ -2,6 +2,10 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
+## Unreleased
+
+- **The Gradle daemon stop spares a busy daemon:** Preflight's once-per-run stop before the lanes build (`dk_gradle_stop_daemons`) ran `gradle --stop`, which stops every daemon on the machine, so a second app's deploy starting while another's Android lane was building killed that build ("Gradle build daemon has been stopped: stop command received"; freebox under iris, 2026-11-07). Now it reads `gradle --status` and, with any daemon busy, stops only the idle ones by pid; with none busy, `--stop` as before.
+
 ## 0.0.4 (2026-11-03)
 
 The deploy reads Terraform's outputs live, and the scripts every app kept a copy of are the kit's.

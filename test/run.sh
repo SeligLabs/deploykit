@@ -381,6 +381,43 @@ case_tv_leanback() {
 }
 
 # yarn deploy bump: the version by hand, the native files too, no commit.
+# Another deploy on this machine is building with Gradle: the preflight's
+# daemon stop must not end its build (a --stop kills every daemon), so only
+# the idle daemons go; with nobody busy, --stop as before.
+case_gradle_busy() {
+  fresh gradle_busy
+  mkdir -p "$APP/apps/mobile/android"
+  cp "$KIT/test/stubs/gradlew" "$APP/apps/mobile/android/gradlew"
+  # The idle daemon: a process the stop can end (disowned, so the shell
+  # doesn't report its end).
+  sleep 300 &
+  local idle=$!
+  disown "$idle"
+  STUB_GRADLE_BUSY=1 STUB_GRADLE_IDLE_PID=$idle deploy "$ALL"
+  expect_rc 0
+  expect_log "^gradlew --status"
+  expect_no_log "^gradlew --stop"
+  sleep 1
+  if kill -0 "$idle" 2>/dev/null; then
+    fail "the idle daemon wasn't stopped"
+    kill "$idle" 2>/dev/null
+  fi
+  # Stopped once per run, before the lanes.
+  [[ "$(grep -c '^gradlew --status' "$SCRATCH/stub.log")" == 1 ]] || fail "the daemons were looked at more than once"
+
+  fresh gradle_idle
+  mkdir -p "$APP/apps/mobile/android"
+  cp "$KIT/test/stubs/gradlew" "$APP/apps/mobile/android/gradlew"
+  sleep 300 &
+  idle=$!
+  disown "$idle"
+  STUB_GRADLE_IDLE_PID=$idle deploy "$ALL"
+  expect_rc 0
+  expect_log "^gradlew --stop"
+  kill -0 "$idle" 2>/dev/null || fail "--stop should have been Gradle's own, not a kill"
+  kill "$idle" 2>/dev/null
+}
+
 case_bump() {
   fresh bump
   deploy "" bump set 2.0.0 20 --breaking
@@ -462,7 +499,7 @@ case_usage() {
   expect_out "mobile[:ios|android]"
 }
 
-SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command
+SCENARIOS=(full outputs_ready failed_lint cancel target_fails unticked_group group_command gradle_busy
   sites_only first_deploy_target_command infra reuse already_uploaded watch_missing watch_version xctest_fails
   no_simulators tv_leanback bump publish_site outputs_live outputs_stale_only store_without_outputs env_sync sso_margin settings demo usage)
 [[ $# -gt 0 ]] && SCENARIOS=("$@")
