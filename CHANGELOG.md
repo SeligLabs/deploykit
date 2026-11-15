@@ -2,7 +2,7 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
-## Unreleased
+## 0.0.6 (2026-11-15)
 
 - **Dependencies:** the deploy UI builds with Go 1.27.4 (`tui/go.mod`; an older Go fetches that toolchain by itself) on lipgloss 2.1.1 and current `golang.org/x/sys` and `x/sync`. CI runs on Node 26 and the current `actions/checkout`, `setup-go` and `setup-node`. No change to the contract.
 
