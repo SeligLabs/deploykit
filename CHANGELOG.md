@@ -2,7 +2,7 @@
 
 Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` goes up and the entry says how to move. New work goes under `## Unreleased`; `bash scripts/release.sh` turns that into the release's heading.
 
-## Unreleased
+## 0.0.7 (2026-11-27)
 
 - **Dependencies:** the deploy UI builds on Bubble Tea 2.2.0, bubbles 2.2.2 and `charmbracelet/x/ansi` 0.12.0, with current `ultraviolet` and `uniseg`. From their notes: an escape sequence with more than 32 parameters no longer panics the renderer (`ansi`'s `DecodeSequence`, fixed in 0.11.10; any output the UI shows could carry one), an idle UI stops redrawing, and the terminal is restored after more kinds of failure (Bubble Tea 2.1.2 and 2.1.3). Bubble Tea 2.2.0's one addition, `View.ProgramResume`, isn't used. No change to the contract.
 - **`tui/deploytui` is out of the repository:** a build of the deploy UI (macOS arm64, made with Go 1.27.3) had been committed with the first kit. Nothing read it: the engine builds the UI with `tui/build.sh` into `~/.cache/<slug>/deploy-tui/`, and an installed kit never carried it (package.json's `files`). A bare `go build` in `tui/` writes that name again, so it's git-ignored.
