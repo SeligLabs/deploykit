@@ -5,6 +5,7 @@ Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` go
 ## Unreleased
 
 - **Dependencies:** the deploy UI builds on bubbles 2.2.2 and `charmbracelet/x/ansi` 0.11.10 (its `DecodeSequence` panicked on a sequence with more parameters than the parser's buffer holds), with current `ultraviolet` and `uniseg`. No change to the contract.
+- **`tui/deploytui` is out of the repository:** a build of the deploy UI (macOS arm64, made with Go 1.27.3) had been committed with the first kit. Nothing read it: the engine builds the UI with `tui/build.sh` into `~/.cache/<slug>/deploy-tui/`, and an installed kit never carried it (package.json's `files`). A bare `go build` in `tui/` writes that name again, so it's git-ignored.
 
 ## 0.0.6 (2026-11-15)
 

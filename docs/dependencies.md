@@ -21,4 +21,4 @@ Checks: (cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...) && 
 
 ## Log
 
-- 2026-11-27: routine (bubbles 2.2.2, `x/ansi` 0.11.10, current `ultraviolet` and `uniseg`).
+- 2026-11-27: routine (bubbles 2.2.2, `x/ansi` 0.11.10, current `ultraviolet` and `uniseg`); the committed build `tui/deploytui` (Go 1.27.3) removed.
