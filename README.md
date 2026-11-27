@@ -10,11 +10,11 @@ Start with [CONTRACT.md](CONTRACT.md).
 
 ## Using it in an app
 
-1. `package.json`: `"@seliglabs/deploykit": "github:SeligLabs/deploykit#v0.0.1"` and `"deploy": "bash scripts/deploy/deploy.sh"`.
+1. `package.json`: `"@seliglabs/deploykit": "github:SeligLabs/deploykit#v0.0.6"` and `"deploy": "bash scripts/deploy/deploy.sh"`.
 2. CI: a read-only deploy key on this repo, added to the app's repo as the secret `DEPLOYKIT_SSH_KEY`, and before `yarn install`:
 
    ```yaml
-   - uses: webfactory/ssh-agent@v0.9.1
+   - uses: webfactory/ssh-agent@v0.10.0
      with: { ssh-private-key: "${{ secrets.DEPLOYKIT_SSH_KEY }}" }
    ```
 

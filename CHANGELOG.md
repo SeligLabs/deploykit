@@ -6,6 +6,7 @@ Semver. A change to anything in CONTRACT.md is a major (API) change: `DK_API` go
 
 - **Dependencies:** the deploy UI builds on Bubble Tea 2.2.0, bubbles 2.2.2 and `charmbracelet/x/ansi` 0.12.0, with current `ultraviolet` and `uniseg`. From their notes: an escape sequence with more than 32 parameters no longer panics the renderer (`ansi`'s `DecodeSequence`, fixed in 0.11.10; any output the UI shows could carry one), an idle UI stops redrawing, and the terminal is restored after more kinds of failure (Bubble Tea 2.1.2 and 2.1.3). Bubble Tea 2.2.0's one addition, `View.ProgramResume`, isn't used. No change to the contract.
 - **`tui/deploytui` is out of the repository:** a build of the deploy UI (macOS arm64, made with Go 1.27.3) had been committed with the first kit. Nothing read it: the engine builds the UI with `tui/build.sh` into `~/.cache/<slug>/deploy-tui/`, and an installed kit never carried it (package.json's `files`). A bare `go build` in `tui/` writes that name again, so it's git-ignored.
+- **README:** the example pin is `#v0.0.6` (was `#v0.0.1`), and the CI snippet's `webfactory/ssh-agent` is v0.10.0, which runs on Node 24 (v0.9.1 runs on Node 20, past its end of life). An app's CI with the old line can take the new one.
 
 ## 0.0.6 (2026-11-15)
 

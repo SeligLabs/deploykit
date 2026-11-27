@@ -13,6 +13,7 @@ Checks: (cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...) && 
 
 - Never run `scripts/release.sh` from an update, not even `--dry-run`: a release is the owner's to make. An update's commits stay under `## Unreleased` in CHANGELOG.md, which becomes the release's notes.
 - The apps pin the kit by tag (`github:SeligLabs/deploykit#v<version>`), so they move only to a released tag, never to an unreleased commit.
+- README.md carries two versions `scripts/release.sh` doesn't write: the example pin (`#v<version>`, the newest released tag, never an unreleased one) and the CI snippet's `webfactory/ssh-agent`.
 - A dependency update leaves CONTRACT.md alone: any change there is a major.
 - The Go version has one source, the `go` line in `tui/go.mod` (CI reads it with `go-version-file`).
 - `github.com/rivo/uniseg` rides an untagged commit because bubbles 2.2.2 requires it, and `github.com/charmbracelet/ultraviolet` has no tags at all: let `go get` and `go mod tidy` choose both.
@@ -23,4 +24,4 @@ Checks: (cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...) && 
 
 ## Log
 
-- 2026-11-27: routine (bubbles 2.2.2, `x/ansi` 0.11.10, current `ultraviolet` and `uniseg`); the committed build `tui/deploytui` (Go 1.27.3) removed; Bubble Tea 2.2.0 with `x/ansi` 0.12.0.
+- 2026-11-27: routine (bubbles 2.2.2, `x/ansi` 0.11.10, current `ultraviolet` and `uniseg`); the committed build `tui/deploytui` (Go 1.27.3) removed; Bubble Tea 2.2.0 with `x/ansi` 0.12.0; README's snippets (the pin at v0.0.6, `webfactory/ssh-agent` v0.10.0).
