@@ -16,9 +16,11 @@ Checks: (cd tui && test -z "$(gofmt -l .)" && go vet ./... && go test ./...) && 
 - A dependency update leaves CONTRACT.md alone: any change there is a major.
 - The Go version has one source, the `go` line in `tui/go.mod` (CI reads it with `go-version-file`).
 - `github.com/rivo/uniseg` rides an untagged commit because bubbles 2.2.2 requires it, and `github.com/charmbracelet/ultraviolet` has no tags at all: let `go get` and `go mod tidy` choose both.
+- Bubble Tea and `github.com/charmbracelet/x/ansi` move as one: each Bubble Tea release requires an `ansi` version.
+- `go test` drives the UI's model, not Bubble Tea's runtime. After a Bubble Tea move, run the UI once on a terminal: `DEPLOYKIT_DEV=../deploykit yarn deploy demo` in an app (it touches nothing).
 - `go list -m -u all` also names modules that aren't in `tui/go.mod` (other modules' test dependencies: `x/exp/golden`, `go-udiff`, `bitset`, `go-humanize`, `golang.org/x/exp`). The build doesn't use them; there is nothing to move.
 - `bash test/run.sh` deploys nothing, but on a machine with a Gradle under `~/.gradle/wrapper/dists` its Android preflight runs that Gradle's `--status` and `--stop` (the kit's daemon stop: idle daemons on the machine end, busy ones are spared). With `HOME` pointed at an empty folder it stays inside its scratch copy.
 
 ## Log
 
-- 2026-11-27: routine (bubbles 2.2.2, `x/ansi` 0.11.10, current `ultraviolet` and `uniseg`); the committed build `tui/deploytui` (Go 1.27.3) removed.
+- 2026-11-27: routine (bubbles 2.2.2, `x/ansi` 0.11.10, current `ultraviolet` and `uniseg`); the committed build `tui/deploytui` (Go 1.27.3) removed; Bubble Tea 2.2.0 with `x/ansi` 0.12.0.
